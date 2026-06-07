@@ -95,7 +95,9 @@ LSP26 provides standard follow and unfollow functions, follower and following co
 
 ```solidity
 function follow(address addr) external;
+function followBatch(address[] memory addresses) external;
 function unfollow(address addr) external;
+function unfollowBatch(address[] memory addresses) external;
 function isFollowing(address follower, address addr) external view returns (bool);
 ```
 
@@ -112,7 +114,7 @@ The combination matters:
 | Can another app read follows? | Only if it integrates that app | Yes, through standard functions |
 | Is profile metadata standardized? | Usually separate | Yes, through Universal Profiles |
 | Can profiles receive notifications? | App-specific | Yes, through LSP1 integration |
-| Can follows be batched? | Depends on app | Yes, LSP26 supports batch functions |
+| Can follows be batched? | Depends on app | Yes, through `followBatch` and `unfollowBatch` |
 | Is the graph tied to one UI? | Often | No, the graph is contract-level |
 
 ## Production checklist
