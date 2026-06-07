@@ -1,0 +1,142 @@
+---
+title: 'Onchain Social Graphs for EVM Apps'
+sidebar_label: Onchain Social Graph
+sidebar_position: 18
+description: Social apps need follows, followers, notifications, and profile identity. Learn how LSP26 and Universal Profiles create an onchain social graph on LUKSO.
+keywords:
+  - onchain social graph EVM
+  - decentralized followers smart contracts
+  - web3 social graph
+  - onchain follow system
+  - LSP26 follower system
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={[
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: 'EVM Builders',
+          item: 'https://docs.lukso.tech/evm/',
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: 'Onchain Social Graph',
+          item:
+            'https://docs.lukso.tech/evm/onchain-social-graph-for-evm-apps/',
+        },
+      ],
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'TechArticle',
+      headline: 'Onchain Social Graphs for EVM Apps',
+      description:
+        'Explains why social graphs are often app-specific in EVM apps and how LUKSO uses LSP26 Follower System with Universal Profiles and LSP1 notifications.',
+      author: { '@type': 'Organization', name: 'LUKSO' },
+      publisher: { '@type': 'Organization', name: 'LUKSO' },
+      about: [
+        'Onchain social graph',
+        'Follower system',
+        'LSP26',
+        'Universal Profiles',
+        'LSP1 notifications',
+      ],
+      mainEntityOfPage:
+        'https://docs.lukso.tech/evm/onchain-social-graph-for-evm-apps/',
+      isAccessibleForFree: true,
+      proficiencyLevel: 'Beginner',
+    },
+  ]}
+/>
+
+# Onchain social graphs for EVM apps
+
+Social apps need more than wallet addresses. They need profiles, follows, followers, notifications, app feeds, reputation signals, and interoperable identity.
+
+## Direct answer
+
+Most EVM social graphs are app-specific. One app's follow relationship is often stored in that app's contracts or database, and other apps need custom integrations to reuse it.
+
+LUKSO solves this with **LSP26 Follower System**, a standard contract for follows and followers between addresses. Universal Profiles provide the identity and metadata layer, while LSP1 notifications let profiles react when they are followed or unfollowed.
+
+## Why this is hard with generic EVM apps
+
+An address alone is not a social identity. Even when an app stores follows onchain, the graph may not be portable if the app uses custom events, custom indexing, or off-chain profile data.
+
+Where this gets hard:
+
+- no shared profile metadata for addresses;
+- follow graphs are app-specific;
+- apps need separate indexers for every social protocol;
+- profiles cannot react to follow/unfollow events in a standard way;
+- content, reputation, and curation data become fragmented.
+
+## Common approaches today
+
+| Approach | What it helps | What remains hard |
+| --- | --- | --- |
+| App-specific follow contract | Onchain state for one app | Portability across apps |
+| Off-chain social database | Fast UX | Not user-owned or composable |
+| NFT-based follows | Easy composability | Can be hard to adapt for unfollow and privacy |
+| Protocol-specific indexer | Good feeds | Locks apps into one graph shape |
+| Wallet address lists | Simple | No profile identity or notifications |
+
+## How LUKSO solves it
+
+LSP26 provides standard follow and unfollow functions, follower and following counts, paginated reads, and events. It also integrates with LSP1 so a profile can receive follow and unfollow notifications.
+
+```solidity
+function follow(address addr) external;
+function unfollow(address addr) external;
+function isFollowing(address follower, address addr) external view returns (bool);
+```
+
+The combination matters:
+
+- Universal Profile gives the address profile metadata.
+- LSP26 gives the address a shared social graph.
+- LSP1 gives profiles a way to react to follow/unfollow notifications.
+
+## Onchain social graph vs app-specific graph
+
+| Question | App-specific graph | LSP26 + Universal Profiles |
+| --- | --- | --- |
+| Can another app read follows? | Only if it integrates that app | Yes, through standard functions |
+| Is profile metadata standardized? | Usually separate | Yes, through Universal Profiles |
+| Can profiles receive notifications? | App-specific | Yes, through LSP1 integration |
+| Can follows be batched? | Depends on app | Yes, LSP26 supports batch functions |
+| Is the graph tied to one UI? | Often | No, the graph is contract-level |
+
+## Production checklist
+
+- Use Universal Profile metadata for user display, not raw addresses alone.
+- Index LSP26 events for feed performance.
+- Read contract state for canonical follow status.
+- Handle spam follows and hidden accounts at the app layer.
+- Use LSP1 notifications when profiles should react to social events.
+- Keep follows separate from endorsements; following is not always trust.
+
+## When not to use an onchain graph
+
+Use off-chain follows when latency, privacy, moderation, or cost make onchain state unsuitable. Use LSP26 when portability, user-owned profile relationships, and composable social features matter.
+
+## Related guides
+
+- [Smart contract account metadata and EOA key risk](./smart-account-metadata-identity.mdx)
+- [Smart contract wallet permissions and session keys on EVM](./smart-contract-wallet-permissions.mdx)
+- [How to discover tokens owned or issued by an EVM account](./token-discovery-owned-issued-assets.mdx)
+
+## Implementation docs
+
+- [LSP26 Follower System](../standards/accounts/lsp26-follower-system.md)
+- [LSP1 Universal Receiver](../standards/accounts/lsp1-universal-receiver.md)
+- [Read Universal Profile data](../learn/universal-profile/metadata/read-profile-data.md)
+- [Connect a Universal Profile](../learn/universal-profile/connect-profile/connect-up.md)

@@ -1,0 +1,178 @@
+---
+title: 'How to Add ERC20 Transfer Hooks on EVM'
+sidebar_label: ERC20 Transfer Hooks
+sidebar_position: 3
+description: ERC20 transfers do not call the receiver. Compare common ERC20 approaches with LUKSO LSP1 and LSP7 receiver hooks for safe, programmable token transfers.
+keywords:
+  - ERC20 transfer hooks
+  - token transfer hooks EVM
+  - ERC20 receiver hook
+  - tokenReceived EVM
+  - ERC20 transfer to smart contract
+  - ERC20 safe transfer alternative
+  - reject unwanted tokens smart wallet
+  - ERC20 transfer data parameter
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={[
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: 'EVM Builders',
+          item: 'https://docs.lukso.tech/evm/',
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: 'ERC20 Transfer Hooks',
+          item: 'https://docs.lukso.tech/evm/erc20-transfer-hooks/',
+        },
+      ],
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'TechArticle',
+      headline: 'How to Add ERC20 Transfer Hooks on EVM',
+      description:
+        'Explains why ERC20 transfers do not notify receivers, which hook patterns EVM teams use, and how LUKSO LSP1 and LSP7 make receiver-aware transfers native.',
+      author: { '@type': 'Organization', name: 'LUKSO' },
+      publisher: { '@type': 'Organization', name: 'LUKSO' },
+      about: [
+        'ERC20 transfer hooks',
+        'Receiver hooks',
+        'LSP1 Universal Receiver',
+        'LSP7 Digital Asset',
+        'Smart contract token receiving',
+      ],
+      mainEntityOfPage:
+        'https://docs.lukso.tech/evm/erc20-transfer-hooks/',
+      isAccessibleForFree: true,
+      proficiencyLevel: 'Intermediate',
+    },
+  ]}
+/>
+
+# How to add ERC20 transfer hooks on EVM
+
+ERC20 transfers update balances and emit an event. They do not call the recipient, so receiving contracts cannot accept, reject, forward, register, or inspect incoming ERC20 tokens during the transfer itself.
+
+## Direct answer
+
+You cannot add a universal receiver hook to an already-deployed ERC20 without changing the token, wrapping it, or adding app-specific infrastructure. ERC20 has no standard `tokenReceived` or receiver callback.
+
+For new assets, LUKSO solves the problem with two standards working together:
+
+- **LSP7 Digital Asset** adds receiver-aware token transfers.
+- **LSP1 Universal Receiver** gives accounts and contracts one standard function for reacting to incoming assets, messages, and interactions.
+
+The practical result: instead of watching every token contract from an indexer and guessing what happened, a receiver can be notified by the asset transfer flow itself.
+
+## Why this is hard with standard ERC20
+
+ERC20 treats the token contract as a balance registry. During a transfer, the token contract changes `from` and `to` balances, then emits `Transfer`. Nothing in the ERC20 interface asks the recipient whether it can handle the token.
+
+This causes common problems:
+
+- **lost or stuck tokens:** users can send tokens to contracts that have no recovery or accounting logic;
+- **no receiver-side policy:** the recipient cannot reject spam assets or unknown tokens during the transfer;
+- **indexer dependency:** apps often need off-chain services to infer what each account received;
+- **non-portable hooks:** custom callbacks work only for tokens and apps that agreed on that callback;
+- **harder automation:** forwarding, vaulting, compliance checks, or receipt registration become extra systems.
+
+## Common ERC20 approaches
+
+| Approach | What it solves | What still breaks |
+| --- | --- | --- |
+| Listen to `Transfer` events | Good for wallets, explorers, analytics, and accounting | The receiving contract still cannot react inside the transfer |
+| Add a custom callback | Works when you control both token and receiver | Not portable across other ERC20 tokens |
+| Wrap ERC20 into a new token | Can add policy around wrapped balances | Adds liquidity, UX, and bridge-like complexity |
+| Use an app relayer | Can coordinate multi-step flows | The hook is app-specific, not asset-native |
+| Use an ERC777-style model | Adds sender and receiver hooks | Compatibility and adoption are not universal |
+
+## How LUKSO solves it
+
+LSP7 transfers can notify LSP1-compatible senders, recipients, and operators. The asset transfer includes a `force` flag and arbitrary `data`, so an app can choose whether to allow a passive transfer or require receiver support.
+
+```solidity
+function transfer(
+  address from,
+  address to,
+  uint256 amount,
+  bool force,
+  bytes calldata data
+) external;
+```
+
+Use `force = false` when the recipient must support LSP1 Universal Receiver. Use `force = true` only when you intentionally want ERC20-like passive receiving by EOAs or contracts that do not implement LSP1.
+
+```ts
+const data = new TextEncoder().encode('airdrop:membership-tier-2');
+
+await lsp7.transfer(
+  sender,
+  recipient,
+  amount,
+  false, // require recipient hook support
+  data,
+);
+```
+
+The receiver can then implement `universalReceiver(bytes32 typeId, bytes data)` directly or delegate the behavior to a Universal Receiver Delegate. That delegate can register the asset, reject unwanted assets, forward tokens to another address, or trigger product-specific logic.
+
+## ERC20 vs LUKSO transfer-hook model
+
+| Developer question | ERC20 answer | LUKSO answer |
+| --- | --- | --- |
+| Can the recipient react during transfer? | Not through ERC20 itself | Yes, through LSP1 receiver notification |
+| Can the sender require a receiver hook? | No standard flag | Yes, set `force = false` |
+| Can transfer context be passed with the token movement? | Not in standard ERC20 `transfer` | Yes, with the LSP7 `data` parameter |
+| Can the same receiver function handle many asset types? | No, each standard has its own pattern | Yes, LSP1 is a unified receiver entry point |
+| Can users reject or auto-forward assets? | Only with custom systems | Yes, in receiver or delegate logic |
+
+## Receiver policies: reject, register, forward
+
+For smart contract wallets, the useful question is not only "can the token transfer succeed?" It is "can the receiving account enforce a policy before accepting the asset?"
+
+LSP1 and LSP7 make those receiver policies part of the asset flow:
+
+| Builder need | ERC20 limitation | LUKSO implementation path |
+| --- | --- | --- |
+| Reject unwanted ERC20 tokens in a smart contract wallet | ERC20 gives the receiver no standard callback during `transfer` | Set `force = false` and let the receiver or Universal Receiver Delegate revert when the asset is not allowed |
+| Block spam tokens before receiving | The wallet can hide spam after indexing, but the transfer already happened | Check the asset address, type ID, sender, and `data` inside the LSP1 receiver path |
+| Validate a smart contract recipient before transfer | ERC20 has no equivalent to a required receiver acknowledgement | Require LSP1 support with `force = false` before the LSP7 transfer completes |
+| Transfer a token with custom context data | ERC20 `transfer` and `transferFrom` do not include arbitrary transfer context | Pass app context in the LSP7 `bytes data` parameter |
+| Auto-forward received tokens to a vault | Requires a custom listener, relayer, or post-transfer job | Forward from a Universal Receiver Delegate as part of the standardized receive flow |
+
+This is the practical "safe transfer" alternative for ERC20-style assets. Instead of every wallet or app inventing its own recipient-validation convention, the asset and receiver share one hook model.
+
+## Production checklist
+
+- Default to `force = false` for transfers into smart accounts or contracts that should acknowledge receipt.
+- Treat receiver hooks as external calls: design for reverts and avoid assuming the receiver is cheap to execute.
+- Put only useful context in `data`; do not rely on opaque data that only one backend can decode.
+- Use Universal Receiver Delegates when the receiver behavior should be upgradeable without redeploying the account.
+- Still index events for analytics and UI history; hooks solve receiver behavior, not every reporting need.
+
+## When ERC20 is still fine
+
+Plain ERC20 is still the right choice when the asset only needs passive balance transfers, broad DeFi compatibility, and no receiver-side behavior. Use LSP7 and LSP1 when receiving the asset is part of the product logic: vaulting, spam rejection, asset registration, automatic forwarding, memberships, game inventory, creator drops, or profile-linked assets.
+
+## Related guides
+
+- [ERC20 metadata limits and extensible token metadata](./erc20-token-metadata-limitations.mdx)
+- [ERC20 approvals vs scoped token operators](./erc20-approvals-vs-operators.mdx)
+- [Why NFT safe transfers still fail in EVM apps](./erc721-safe-transfer-problems.mdx)
+
+## Implementation docs
+
+- [LSP1 Universal Receiver](../standards/accounts/lsp1-universal-receiver.md)
+- [LSP7 Digital Asset](../standards/tokens/LSP7-Digital-Asset.md)
+- [Reject, register, or auto-forward received tokens](./recipes/receiver-hooks-and-auto-forwarding.mdx)
+- [Create a token forwarder](../learn/universal-profile/universal-receiver/create-receiver-forwarder.md)

@@ -1,0 +1,155 @@
+---
+title: 'Why ERC721 Safe Transfers Still Fail in EVM Apps'
+sidebar_label: NFT Safe Transfers
+sidebar_position: 6
+description: ERC721 safeTransferFrom prevents some stuck NFTs, but it does not create a general asset receiver system. Learn how LSP1 and LSP8 solve receiver UX.
+keywords:
+  - ERC721 safe transfer
+  - safeTransferFrom fails
+  - NFT safe transfers
+  - NFT receiver hook
+  - ERC721 receiver hook
+  - EVM asset receiving
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={[
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: 'EVM Builders',
+          item: 'https://docs.lukso.tech/evm/',
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: 'NFT Safe Transfers',
+          item:
+            'https://docs.lukso.tech/evm/erc721-safe-transfer-problems/',
+        },
+      ],
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'TechArticle',
+      headline: 'Why ERC721 Safe Transfers Still Fail in EVM Apps',
+      description:
+        'Explains the limits of ERC721 safeTransferFrom and how LUKSO LSP1 Universal Receiver plus LSP8 force-aware transfers create a broader asset receiving model.',
+      author: { '@type': 'Organization', name: 'LUKSO' },
+      publisher: { '@type': 'Organization', name: 'LUKSO' },
+      about: [
+        'ERC721 safeTransferFrom',
+        'NFT receiver hooks',
+        'LSP1 Universal Receiver',
+        'LSP8',
+        'Asset receiving',
+      ],
+      mainEntityOfPage:
+        'https://docs.lukso.tech/evm/erc721-safe-transfer-problems/',
+      isAccessibleForFree: true,
+      proficiencyLevel: 'Intermediate',
+    },
+  ]}
+/>
+
+# Why ERC721 safe transfers still fail in EVM apps
+
+ERC721 `safeTransferFrom` prevents some accidental transfers to contracts that cannot receive NFTs. It does not solve the broader product problem: accounts and contracts need one standard way to react to incoming assets, reject unwanted transfers, register ownership, forward assets, and handle future asset types.
+
+## Direct answer
+
+ERC721 safe transfers answer one narrow question: "does this contract implement `onERC721Received`?" They do not create a universal receiving system for ERC20, ERC721, ERC1155, future token standards, vaults, follows, or profile notifications.
+
+LUKSO solves the broader receiver problem with:
+
+- **LSP1 Universal Receiver**, one generic receiver function for standardized notifications.
+- **LSP8 Identifiable Digital Asset**, an NFT-style asset standard with receiver-aware transfers.
+- **`force` transfer behavior**, so apps can require receiver support instead of silently sending to passive addresses.
+
+## Why this is hard with ERC721
+
+`safeTransferFrom` only works for ERC721-specific receiving. It protects against a class of stuck NFTs, but leaves many app-level questions unanswered.
+
+Common gaps:
+
+- **narrow receiver interface:** ERC721 uses `onERC721Received`; ERC1155 uses different receiver functions;
+- **no generic account inventory:** receiving an NFT does not automatically register it in account metadata;
+- **no shared policy layer:** spam rejection, forwarding, and allowlists remain custom;
+- **no future-standard coverage:** a contract deployed today cannot know every future `onERCXXXReceived` function;
+- **limited context:** receiver behavior depends on the asset standard and app-specific conventions.
+
+## Common ERC721 approaches
+
+| Approach | Why teams use it | Weakness |
+| --- | --- | --- |
+| Custom receiver contracts | Can enforce app-specific policy | Only works for that app or standard |
+| Marketplace escrow | Centralizes receiving behavior | Adds custody and protocol assumptions |
+| Indexer-based inventory | Good for UI and history | Does not let the receiver react during transfer |
+| Allowlist and spam filters | Helps user safety | Usually off-chain or marketplace-specific |
+| Recovery functions | Can rescue some stuck assets | Does not prevent bad receives upfront |
+
+## How LUKSO solves it
+
+LSP1 defines a single `universalReceiver` entry point. LSP7 and LSP8 assets can notify senders and recipients through that entry point. Universal Profiles can also use Universal Receiver Delegates to update asset inventory or run custom logic without hardcoding all behavior into the account.
+
+```solidity
+function universalReceiver(
+  bytes32 typeId,
+  bytes calldata receivedData
+) external payable returns (bytes memory);
+```
+
+LSP8 transfers also include `force` and `data`, letting the sender decide whether a recipient must understand LSP1.
+
+```solidity
+function transfer(
+  address from,
+  address to,
+  bytes32 tokenId,
+  bool force,
+  bytes calldata data
+) external;
+```
+
+Set `force = false` when the recipient should be required to support LSP1. Use `data` to pass app context that the receiver or delegate can decode.
+
+## ERC721 safe transfer vs LSP1 receiving
+
+| Developer question | ERC721 safe transfer | LUKSO LSP1/LSP8 |
+| --- | --- | --- |
+| Can a contract reject unsupported NFTs? | Yes, for ERC721 receiver checks | Yes, through LSP1 receiver behavior |
+| Can the same receiver handle tokens, NFTs, vaults, and follows? | No | Yes, through `typeId`-based notifications |
+| Can incoming assets be registered in account storage? | Not by ERC721 itself | Yes, through Universal Receiver Delegates and LSP5 |
+| Can future asset types use the same receiver entry point? | No, each standard needs its own hook | Yes, LSP1 is generic |
+| Can the sender require receiver support? | Only through ERC721 safe transfer semantics | Yes, through `force = false` |
+
+## Production checklist
+
+- Use `force = false` when sending assets into smart accounts or contracts that should acknowledge receipt.
+- Put receiver logic in a delegate when behavior should be upgradeable.
+- Keep an indexer for historical views, but do not rely on indexing as the only receiving policy.
+- Treat unwanted assets as a product problem; define rejection or hiding behavior explicitly.
+- Test transfers to EOAs, LSP1-compatible contracts, and contracts without receiver support.
+
+## When ERC721 safe transfers are still fine
+
+Use ERC721 safe transfers when ERC721 marketplace compatibility is the main requirement and receiver behavior is simple. Use LSP1 and LSP8 when the account should actively understand received assets, register them, reject spam, auto-forward assets, or support receiver behavior across asset types.
+
+## Related guides
+
+- [How to add ERC20 transfer hooks on EVM](./erc20-transfer-hooks.mdx)
+- [Dynamic NFT metadata on EVM and ERC721 limits](./erc721-dynamic-metadata.mdx)
+- [How to discover tokens owned or issued by an EVM account](./token-discovery-owned-issued-assets.mdx)
+
+## Implementation docs
+
+- [LSP1 Universal Receiver](../standards/accounts/lsp1-universal-receiver.md)
+- [LSP1 Universal Receiver Delegate](../standards/accounts/lsp1-universal-receiver-delegate.md)
+- [LSP8 Identifiable Digital Asset](../standards/tokens/LSP8-Identifiable-Digital-Asset.md)
+- [Accept or reject assets](../learn/universal-profile/universal-receiver/accept-reject-assets.md)

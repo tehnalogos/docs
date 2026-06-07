@@ -1,0 +1,101 @@
+---
+title: 'EIP-4337 vs Universal Profile | Account Abstraction on LUKSO'
+sidebar_label: EIP-4337 vs UP
+sidebar_position: 6
+description: Compare EIP-4337 account abstraction concepts with LUKSO Universal Profiles, LSP6 permissions, and LSP25 relay calls.
+keywords:
+  - EIP-4337 vs Universal Profile
+  - account abstraction vs Universal Profile
+  - LUKSO smart accounts
+  - EVM account abstraction
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={{
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: 'EIP-4337 vs Universal Profile',
+    description:
+      'Technical comparison of EIP-4337 account abstraction patterns and LUKSO Universal Profiles.',
+    author: { '@type': 'Organization', name: 'LUKSO' },
+    publisher: { '@type': 'Organization', name: 'LUKSO' },
+    about: ['EIP-4337', 'Universal Profile', 'Account abstraction', 'LSP6', 'LSP25'],
+    mainEntityOfPage:
+      'https://docs.lukso.tech/evm/compare/eip4337-vs-universal-profile/',
+    isAccessibleForFree: true,
+  }}
+/>
+
+# EIP-4337 vs Universal Profile
+
+EIP-4337 defines an account-abstraction transaction flow around user operations, bundlers, paymasters, and validation logic. Universal Profiles define a LUKSO smart-account standard around ERC725Y storage, LSP6 permissions, LSP1 receiver hooks, and LSP25 relay execution.
+
+They solve overlapping UX problems, but they are not the same layer.
+
+## Direct answer
+
+EIP-4337 is a transaction-flow standard for account abstraction. Universal Profile is a LUKSO smart-account standard. For "account abstraction vs smart account standard" comparisons, the distinction is:
+
+- EIP-4337 focuses on how user operations are validated, bundled, paid for, and submitted.
+- Universal Profiles focus on what the account is: metadata, permissions, receiver behavior, signature verification, ownership, and relay execution.
+
+Universal Profiles can be part of an account-abstraction strategy, but they should not be described as merely "LUKSO's version of EIP-4337."
+
+## Concept map
+
+| Account-abstraction concern | EIP-4337 framing | Universal Profile framing |
+| --- | --- | --- |
+| Account contract | Smart account implementation. | LSP0 ERC725Account / UniversalProfile. |
+| Authorization | `validateUserOp` and account validation logic. | LSP6 Key Manager permissions and controller signatures. |
+| Gas sponsorship | Paymasters. | LSP25 relay calls through relayer services. |
+| User identity | Depends on the account implementation. | LSP3 profile metadata stored through ERC725Y. |
+| Receiver behavior | Depends on app/account implementation. | LSP1 Universal Receiver hooks. |
+
+## What LUKSO solves outside the 4337 transaction flow
+
+| Problem EVM developers run into | LUKSO standard surface |
+| --- | --- |
+| "My smart account needs public profile data." | LSP3 profile metadata on ERC725Y storage. |
+| "My app needs a session key, but only for selected calls." | LSP6 Key Manager allowed calls. |
+| "My app needs to edit only selected metadata keys." | LSP6 allowed ERC725Y data keys. |
+| "My account should reject or register incoming assets." | LSP1 Universal Receiver plus LSP5 received assets. |
+| "My backend should relay signed account actions." | LSP25 relay calls and nonce channels. |
+| "My login flow needs smart-account signatures." | EIP-1271-compatible `isValidSignature` on the profile. |
+
+## Integration mindset
+
+If you already understand 4337, map the pieces like this:
+
+```text
+UserOperation validation  -> account/control validation
+Paymaster sponsorship     -> gas sponsorship concern
+Bundler submission        -> transaction delivery concern
+Universal Profile         -> account identity and behavior
+LSP6 Key Manager          -> account permission policy
+LSP25 relay call          -> signed execution path used by LUKSO tooling
+```
+
+The LUKSO docs include a 4337 extension guide for developers who need that compatibility path. Start there only after you are clear on what the Universal Profile and Key Manager are responsible for.
+
+## When to use which docs
+
+If you are building on LUKSO, start with Universal Profiles, LSP6 permissions, and LSP25 relay calls. If you need ERC-4337 compatibility, read the 4337 extension material and decide how it should integrate with your profile/account flow.
+
+## Production checklist
+
+1. Do not use 4337 terms as a substitute for LSP6 permission design.
+2. Decide whether gas sponsorship is a paymaster problem, an LSP25 relay problem, or both in your architecture.
+3. Store user identity against the Universal Profile address.
+4. Verify which controller is allowed to sign, call, relay, or edit metadata.
+5. Test direct calls, relay calls, and any 4337 extension path separately.
+6. Document which layer owns replay protection and nonce handling.
+
+## Implementation references
+
+- [4337 extension guide](../../learn/universal-profile/advanced-guides/4337-extension.md)
+- [LSP0 ERC725Account standard](../../standards/accounts/lsp0-erc725account.md)
+- [LSP6 Key Manager standard](../../standards/access-control/lsp6-key-manager.md)
+- [LSP25 Execute Relay Call standard](../../standards/accounts/lsp25-execute-relay-call.md)
+- [Transaction Relay API](../../tools/apis/relayer-api.md)

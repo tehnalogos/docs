@@ -1,0 +1,102 @@
+---
+title: 'How to Migrate ERC20 to LSP7 on LUKSO'
+sidebar_label: ERC20 to LSP7
+sidebar_position: 2
+description: Step-by-step decision guide for migrating ERC20 tokens to LSP7 Digital Assets on LUKSO.
+keywords:
+  - migrate ERC20 to LSP7
+  - ERC20 LUKSO migration
+  - LSP7 token migration
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={{
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: 'How to migrate ERC20 to LSP7',
+    description:
+      'Step-by-step migration guide for moving an ERC20 token to LSP7 on LUKSO.',
+    author: { '@type': 'Organization', name: 'LUKSO' },
+    publisher: { '@type': 'Organization', name: 'LUKSO' },
+    proficiencyLevel: 'Intermediate',
+    mainEntityOfPage: 'https://docs.lukso.tech/evm/migrate/erc20-to-lsp7/',
+    isAccessibleForFree: true,
+  }}
+/>
+
+# How to migrate ERC20 to LSP7
+
+Use this page as the migration checklist. The full implementation walkthrough remains in the existing [ERC20 to LSP7 tutorial](../../learn/migrate/migrate-erc20-to-lsp7.md).
+
+## Short answer
+
+Migrating ERC20 to LSP7 is not just a contract-name swap. Keep the ERC20 concepts your app still needs, then update the places where LSP7 intentionally differs: metadata, transfer shape, receiver behavior, and operator authorization.
+
+The main product gain is that an LSP7 asset can carry richer LSP4/ERC725Y metadata and can interact with LSP1-aware smart accounts during transfers.
+
+## Before you start
+
+- Inventory ERC20 functions your app uses: balances, approvals, transfers, metadata, minting, and burning.
+- Identify contracts that assume ERC20 `transferFrom` and `allowance` semantics.
+- Decide whether the token should be divisible.
+- Decide whether transfers to non-LSP1 recipients should be allowed by default.
+- Decide whether the token should behave like a normal fungible token or a non-divisible amount-based asset.
+- Plan how legacy balances, allowances, and app integrations will be handled during migration.
+
+## Main deltas
+
+| ERC20 concern | LSP7 migration action |
+| --- | --- |
+| `name()` and `symbol()` | Store and read LSP4 metadata through ERC725Y keys. |
+| `transferFrom(from, to, amount)` | Use `transfer(from, to, amount, force, data)`. |
+| Allowances | Use LSP7 operator authorization patterns, and handle allowance-class edge cases carefully. |
+| Recipient behavior | Test `force` and LSP1 Universal Receiver support. |
+| Indexing | Listen to LSP7 transfer and operator events. |
+
+## Contract-level migration path
+
+1. Replace ERC20 inheritance with the LSP7 asset contract or preset that fits your mint/burn requirements.
+2. Pass the LSP7 constructor parameters for name, symbol, owner, LSP4 token type, and divisibility.
+3. Move metadata assumptions from ERC20-style methods into LSP4/ERC725Y metadata.
+4. Replace ERC20 transfer calls with LSP7 transfer calls that include `force` and `data`.
+5. Replace allowance UI with operator authorization UI, including revocation and amount changes.
+6. Add receiver tests for EOAs, Universal Profiles, and contracts that do not implement LSP1.
+
+## Minimal transfer diff
+
+```solidity title="ERC20"
+token.transferFrom(from, to, amount);
+```
+
+```solidity title="LSP7"
+token.transfer(from, to, amount, true, "");
+```
+
+Use `force: true` only when the app intentionally allows the transfer even if the recipient does not support LSP1 receiver behavior. Use `force: false` when the recipient must be able to react to the transfer.
+
+## Approval migration caveat
+
+LSP7 operators are amount-based authorizations. They are more explicit than generic ERC20 allowance UX and can include operator notification data, but they do not remove every allowance-class risk. When changing an existing operator amount, follow the LSP7 contract guidance around `increaseAllowance` and `decreaseAllowance`.
+
+For app or session access to a Universal Profile, use LSP6 permissions instead of trying to model account-level access as token spending.
+
+## Production checklist
+
+1. Port the contract inheritance to [`LSP7DigitalAsset`](../../contracts/contracts/LSP7DigitalAsset/LSP7DigitalAsset.md).
+2. Encode LSP4 metadata and set it on deployment or post-deployment.
+3. Update app transfer calls to include `force` and `data`.
+4. Replace allowance-specific UI with operator authorization UI.
+5. Add integration tests for EOAs, Universal Profiles, and contracts without LSP1.
+6. Update indexers to consume LSP7 events.
+7. Document how legacy ERC20 balances and integrations map to the new LSP7 asset.
+8. Keep a revocation path for every operator the user can authorize.
+
+## Next docs
+
+- [ERC20 vs LSP7 comparison](../compare/erc20-vs-lsp7.mdx)
+- [ERC20 approval risks vs scoped token operators](../erc20-approvals-vs-operators.mdx)
+- [Full ERC20 to LSP7 tutorial](../../learn/migrate/migrate-erc20-to-lsp7.md)
+- [Create an LSP7 token](../../learn/digital-assets/token/create-lsp7-token.md)
+- [LSP7 standard](../../standards/tokens/LSP7-Digital-Asset.md)

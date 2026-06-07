@@ -1,0 +1,104 @@
+---
+title: 'SIWE Smart Account Login | Universal Profile Migration'
+sidebar_label: SIWE to Universal Profile
+sidebar_position: 4
+description: Migrate Sign-In with Ethereum login flows to Universal Profiles using SIWE and EIP-1271 signature verification.
+keywords:
+  - Sign-In with Ethereum smart account
+  - SIWE Universal Profile
+  - EIP-1271 login tutorial
+  - smart account login
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={{
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: 'SIWE smart account login with Universal Profiles',
+    description:
+      'Migration guide for Sign-In with Ethereum flows that verify Universal Profile signatures through EIP-1271.',
+    author: { '@type': 'Organization', name: 'LUKSO' },
+    publisher: { '@type': 'Organization', name: 'LUKSO' },
+    about: ['SIWE', 'EIP-4361', 'EIP-1271', 'Universal Profile'],
+    mainEntityOfPage:
+      'https://docs.lukso.tech/evm/migrate/siwe-to-universal-profile/',
+    isAccessibleForFree: true,
+  }}
+/>
+
+# SIWE smart account login with Universal Profiles
+
+EOA SIWE flows usually verify the recovered signer address. Universal Profile login verifies that the profile contract accepts the signature through EIP-1271-compatible `isValidSignature`.
+
+## Short answer
+
+Keep the SIWE message format, but change verification. For EOAs, the backend usually recovers the signer and compares it to the account address. For Universal Profiles, the backend should treat the Universal Profile address as the account and call `isValidSignature(hash, signature)` on that profile.
+
+That lets the user rotate controller keys while keeping the same profile identity.
+
+## What changes?
+
+| EOA SIWE | Universal Profile SIWE |
+| --- | --- |
+| User signs with the account key. | A controller signs for the Universal Profile. |
+| Backend recovers the signer address. | Backend calls `isValidSignature(hash, signature)` on the profile. |
+| Address is the user identity. | Universal Profile address is the user identity; controllers can rotate. |
+| Permissions are app-specific. | LSP6 `SIGN` permission can scope signing authority. |
+
+## Login flow
+
+1. Ask the user to connect a Universal Profile.
+2. Build the SIWE message with the Universal Profile address.
+3. Have the active controller sign the prepared SIWE message.
+4. Hash the prepared message in the backend.
+5. Call `isValidSignature(hash, signature)` on the Universal Profile contract.
+6. Create the app session for the Universal Profile address.
+
+## Verification sketch
+
+```ts
+import { ethers } from 'ethers';
+
+const hashedMessage = ethers.hashMessage(preparedSiweMessage);
+const result = await universalProfile.isValidSignature(
+  hashedMessage,
+  signature,
+);
+
+if (result !== '0x1626ba7e') {
+  throw new Error('Invalid Universal Profile signature');
+}
+```
+
+## Backend checklist
+
+- Store the session subject as the Universal Profile address.
+- Keep the SIWE domain, nonce, issued-at time, and chain ID validation from your EOA flow.
+- Verify through `isValidSignature` for Universal Profiles instead of relying only on recovered EOA address equality.
+- Check controller permissions when your app depends on an LSP6 `SIGN` permission model.
+- Revalidate signatures on the same chain/account context that the user connected with.
+
+## Common mistakes
+
+- Treating the controller address as the user account.
+- Accepting an EOA-recovered signer when the session is meant to belong to a Universal Profile.
+- Forgetting that controller keys can rotate while the Universal Profile remains stable.
+- Mixing login permission with transaction or asset-transfer permission.
+
+## Migration checklist
+
+1. Keep the SIWE message format from EIP-4361.
+2. Treat the Universal Profile address as the user account address.
+3. Verify signatures with `isValidSignature` instead of only recovering an EOA.
+4. Check whether the signing controller should have LSP6 `SIGN` permission.
+5. Store sessions against the Universal Profile address, not a controller key.
+6. Test expired nonce, wrong domain, wrong chain, and rotated-controller cases.
+
+## Next docs
+
+- [Log in a Universal Profile with SIWE](../../learn/universal-profile/connect-profile/siwe.md)
+- [UniversalProfile contract overview](../../contracts/overview/UniversalProfile.md)
+- [LSP0 ERC725Account standard](../../standards/accounts/lsp0-erc725account.md)
+- [LSP6 Key Manager permissions](../../standards/access-control/lsp6-key-manager.md#permissions)

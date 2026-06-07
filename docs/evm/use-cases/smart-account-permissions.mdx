@@ -1,0 +1,120 @@
+---
+title: 'Smart Account Permissions on LUKSO'
+sidebar_label: Smart Account Permissions
+sidebar_position: 2
+description: Use LSP6 permissions to give apps, sessions, devices, and delegates scoped access to Universal Profiles.
+keywords:
+  - smart contract wallet permissions EVM
+  - smart account permissions
+  - LSP6 permissions
+  - Universal Profile permissions
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={{
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: 'Smart account permissions on LUKSO',
+    description:
+      'Guide to using LSP6 permissions for scoped Universal Profile controller access.',
+    author: { '@type': 'Organization', name: 'LUKSO' },
+    publisher: { '@type': 'Organization', name: 'LUKSO' },
+    about: ['LSP6', 'Key Manager', 'Smart account permissions', 'Universal Profile'],
+    mainEntityOfPage:
+      'https://docs.lukso.tech/evm/use-cases/smart-account-permissions/',
+    isAccessibleForFree: true,
+  }}
+/>
+
+# Smart account permissions on LUKSO
+
+Universal Profiles use the LSP6 Key Manager to give controllers scoped permissions. A controller can be a device key, app key, session key, backend service, or delegate contract.
+
+## Short answer
+
+Use LSP6 when a smart account needs more than one all-powerful owner key. LSP6 lets a Universal Profile assign permissions to controllers and then narrow those permissions with allowed calls or allowed ERC725Y data keys.
+
+That gives EVM apps a standard way to model common account-access questions:
+
+- "Can this app sign login messages but not move assets?"
+- "Can this session key call only one contract?"
+- "Can this app edit only its own profile data?"
+- "Can this relayer submit signed actions without becoming an admin?"
+
+## Common permission patterns
+
+| Pattern | Typical permissions | Required scope |
+| --- | --- | --- |
+| Login-only controller | `SIGN` | No asset-transfer permission |
+| Profile editor | `SETDATA` | Allowed ERC725Y data keys |
+| App session key | `CALL` | Allowed calls to selected contracts/functions |
+| Relay signer | Relay execution permission | Nonce and relay-call validation |
+| Receiver delegate | Narrow permission set for the delegate action | Usually tied to the receiver flow |
+| Admin recovery/controller setup | `ADDCONTROLLER`, `EDITPERMISSIONS`, or higher permissions | Only for trusted admin or recovery flows |
+
+## Why generic session keys are not enough
+
+Many EVM apps implement session keys as an app-specific module or backend permission. That can work, but it usually does not create portable account semantics. Another wallet, indexer, or app may not understand what the key can do.
+
+LSP6 stores permission data on the Universal Profile through standard ERC725Y data keys. That means controllers and permissions can be inspected with LUKSO tooling instead of living only in app-specific state.
+
+| App need | Weak pattern | LSP6 pattern |
+| --- | --- | --- |
+| Login without asset control | Same key signs and spends | `SIGN`-only controller |
+| Limited trading action | Broad wallet approval | `CALL` plus allowed calls |
+| Metadata editor | Full `SETDATA` access | `SETDATA` plus allowed data keys |
+| Gas-sponsored action | Backend executes as admin | Relay execution permission plus LSP25 |
+| Revocation | App deletes a backend session | Profile removes or edits the controller permission |
+
+## Implementation shape
+
+Use the existing ERC725/LSP helpers to encode permissions and data keys. The sketch below shows the data model; production code should follow the full grant-permissions guide linked below.
+
+```ts
+const controller = '0x2222222222222222222222222222222222222222';
+
+const permissionsValue = erc725.encodePermissions({
+  SIGN: true,
+});
+
+const encodedData = erc725.encodeData([
+  {
+    keyName: 'AddressPermissions:Permissions:<address>',
+    dynamicKeyParts: controller,
+    value: permissionsValue,
+  },
+]);
+
+await universalProfile.setDataBatch(encodedData.keys, encodedData.values);
+```
+
+For a controller that can call contracts, also set `AddressPermissions:AllowedCalls:<address>`. For a controller that can edit metadata, also set `AddressPermissions:AllowedERC725YDataKeys:<address>`.
+
+## Design checklist
+
+1. Start from the smallest permission set.
+2. Restrict allowed calls and allowed data keys whenever possible.
+3. Separate login keys from transaction keys.
+4. Show users which app or device controls which action.
+5. Build revocation into account settings.
+6. Avoid `SUPER_*` permissions for normal app sessions.
+7. Test permission failure paths, not only successful calls.
+8. Keep recovery/admin controllers separate from app controllers.
+
+## Common mistakes
+
+- Granting `CALL` without allowed calls when the app only needs one contract.
+- Granting `SETDATA` without allowed data keys when the app only owns one metadata namespace.
+- Reusing the same controller for login, asset movement, and admin changes.
+- Forgetting that `EDITPERMISSIONS` can be extremely sensitive.
+- Hiding controller state from users instead of exposing connected apps, devices, and sessions.
+
+## Next docs
+
+- [LSP6 Key Manager standard](../../standards/access-control/lsp6-key-manager.md)
+- [Grant permissions](../../learn/universal-profile/key-manager/grant-permissions.md)
+- [Get controller permissions](../../learn/universal-profile/key-manager/get-controller-permissions.md)
+- [lsp-utils LSP6 helpers](../../tools/dapps/lsp-utils/LSP6KeyManager.md)
+- [ERC725.js encode permissions](../../tools/dapps/erc725js/methods.md#encodepermissions)

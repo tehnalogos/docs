@@ -1,0 +1,198 @@
+---
+title: 'Dynamic NFT Metadata on EVM and ERC721 Limits'
+sidebar_label: Dynamic NFT Metadata
+sidebar_position: 5
+description: ERC721 dynamic metadata usually depends on tokenURI endpoints and marketplace refreshes. Learn how LSP8 and ERC725Y make NFT metadata extensible.
+keywords:
+  - dynamic NFT metadata
+  - NFT metadata EVM
+  - ERC721 metadata limitations
+  - updatable NFT metadata
+  - ERC721 tokenURI alternative
+  - ERC721 bytes32 tokenId
+  - NFT tokenId smart contract address
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={[
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: 'EVM Builders',
+          item: 'https://docs.lukso.tech/evm/',
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: 'Dynamic NFT Metadata',
+          item: 'https://docs.lukso.tech/evm/erc721-dynamic-metadata/',
+        },
+      ],
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'TechArticle',
+      headline: 'Dynamic NFT Metadata on EVM and ERC721 Limits',
+      description:
+        'Explains why dynamic NFT metadata is often custom in ERC721 projects and how LUKSO LSP8 uses ERC725Y, LSP4 metadata, token-level data keys, and bytes32 token IDs.',
+      author: { '@type': 'Organization', name: 'LUKSO' },
+      publisher: { '@type': 'Organization', name: 'LUKSO' },
+      about: [
+        'Dynamic NFT metadata',
+        'ERC721 tokenURI',
+        'LSP8 Identifiable Digital Asset',
+        'ERC725Y',
+        'LSP4 Digital Asset Metadata',
+      ],
+      mainEntityOfPage:
+        'https://docs.lukso.tech/evm/erc721-dynamic-metadata/',
+      isAccessibleForFree: true,
+      proficiencyLevel: 'Intermediate',
+    },
+  ]}
+/>
+
+# Dynamic NFT metadata on EVM and ERC721 limits
+
+NFT apps often need metadata that changes: game attributes, membership status, redeemable state, profile-linked assets, creator context, verifiable media, or unlockable utility. ERC721 gives the ecosystem a common ownership interface and a familiar `tokenURI` pattern, but it does not define a complete dynamic metadata model.
+
+## Direct answer
+
+Dynamic NFT metadata on ERC721 usually means one of two things: return a different `tokenURI`, or change the JSON served at the same URI. Both approaches can work, but the update rules, verification model, collection-level metadata, token-level metadata, and marketplace refresh behavior are mostly left to each project.
+
+LUKSO solves this with LSP8 Identifiable Digital Assets. LSP8 assets use ERC725Y storage and LSP4 metadata keys, including token-level metadata through `getDataForTokenId` and `setDataForTokenId`. Metadata can be standardized, updatable, and discoverable through the asset contract instead of only through marketplace-specific URI handling.
+
+## Why this is hard with standard ERC721
+
+ERC721 standardizes ownership and token IDs. Metadata is typically resolved through `tokenURI(uint256 tokenId)`, but the standard does not define the shape, mutability, verification, update event strategy, or app-level semantics of the JSON behind that URI.
+
+That creates problems when:
+
+- **metadata changes after mint:** marketplaces may cache old JSON until a refresh is triggered;
+- **the URI stays the same:** clients cannot know whether the JSON changed without refetching;
+- **the URI changes:** clients need custom events or polling to learn the new location;
+- **verification matters:** the contract does not standardize hashes for media or JSON content;
+- **collection and token data diverge:** collection-level data and token-level data often use different conventions;
+- **dynamic logic is opaque:** apps cannot know whether a change is expected, temporary, game-driven, or centralized.
+
+## Common ERC721 dynamic metadata approaches
+
+| Approach | Why teams use it | Weakness |
+| --- | --- | --- |
+| Mutable JSON at a stable `tokenURI` | Easy for dynamic art and games | Clients may cache stale data and cannot verify what changed |
+| Changing `tokenURI` | Clear new metadata location | Requires custom update events and marketplace refresh support |
+| Centralized metadata API | Maximum flexibility | Adds trust and availability risk |
+| Onchain JSON or SVG | Durable and inspectable | Expensive and often limited for rich media |
+| Custom metadata contract | More structure | Every app needs custom integration logic |
+
+## How LUKSO solves it
+
+LSP8 gives NFT collections a more explicit metadata surface:
+
+- `bytes32` token IDs can represent numbers, strings, addresses, hashes, or other identifiers.
+- ERC725Y data keys attach extensible metadata to the collection contract.
+- `setDataForTokenId(bytes32 tokenId, bytes32 key, bytes value)` stores token-level metadata.
+- `getDataForTokenId(bytes32 tokenId, bytes32 key)` lets apps read token-level metadata directly.
+- LSP4 metadata uses VerifiableURI values so metadata references can include verification data.
+
+```ts
+import { ERC725YDataKeys } from '@lukso/lsp-smart-contracts';
+
+const metadataKey = ERC725YDataKeys.LSP4.LSP4Metadata;
+
+const collectionMetadata = await lsp8.getData(metadataKey);
+const tokenMetadata = await lsp8.getDataForTokenId(tokenId, metadataKey);
+```
+
+The important difference is not just "metadata can change." The difference is that the contract exposes where metadata lives and how to read it through a standard data model.
+
+## ERC721 vs LSP8 dynamic metadata
+
+| Developer question | ERC721 pattern | LSP8 pattern |
+| --- | --- | --- |
+| Where is token metadata found? | Usually `tokenURI(tokenId)` | ERC725Y data keys, including token-level keys |
+| Can metadata be attached to the token ID itself? | Only through custom URI or custom storage | Yes, with `getDataForTokenId` and `setDataForTokenId` |
+| Can the token ID represent an address or hash? | Usually `uint256` | Yes, `bytes32` token IDs support richer representations |
+| Can metadata references include verification data? | Not in ERC721 itself | Yes, with LSP4 VerifiableURI metadata |
+| Do all apps need custom metadata logic? | Often, yes | Less often, because the data-key model is shared |
+
+## Token ID limitations: uint256 vs bytes32
+
+ERC721 token IDs are `uint256`. That is excellent for sequential collections, but less expressive when the token ID should represent a domain object that is not naturally a number.
+
+LSP8 token IDs are `bytes32`, which lets a collection use IDs that encode or derive from richer inputs while keeping a fixed-size onchain identifier.
+
+| Token ID need | ERC721 pattern | LSP8 pattern |
+| --- | --- | --- |
+| Sequential NFT IDs | `uint256` works directly | Encode the number as `bytes32` |
+| NFT token ID as a smart contract address | Convert address semantics into a number or custom mapping | Left-pad the address into `bytes32` and use it as the token ID |
+| Token ID from a string slug | Hash the string into a `uint256` or store a lookup table | Hash or encode the slug into `bytes32` |
+| Token ID from external asset hash | Convert the hash into a number or store another mapping | Use the hash-compatible `bytes32` value directly |
+| Profile-linked or contract-linked NFTs | Usually custom metadata or registry logic | Use a token ID that can represent the linked profile, contract, or claim |
+
+```ts
+import { ethers } from 'ethers';
+
+const addressTokenId = ethers.zeroPadValue(profileAddress, 32);
+const slugTokenId = ethers.id('creator-drop:season-1:badge-042');
+
+await lsp8.mint(profileAddress, addressTokenId, false, '0x');
+await lsp8.setDataForTokenId(slugTokenId, metadataKey, encodedMetadata);
+```
+
+Use this when the token ID itself should carry product meaning: account-bound credentials, contract-backed collectibles, creator editions, redeemable goods, dynamic game items, or NFTs that point to another onchain object.
+
+## What to implement
+
+For dynamic NFT metadata on LUKSO:
+
+1. Use LSP8 for the collection.
+2. Use LSP4 metadata for collection-level fields.
+3. Use `setDataForTokenId` for token-level metadata that changes per NFT.
+4. Encode metadata references as VerifiableURI values.
+5. Use stable update rules in your app so users know which fields can change and why.
+
+```ts
+import { ERC725YDataKeys } from '@lukso/lsp-smart-contracts';
+
+const key = ERC725YDataKeys.LSP4.LSP4Metadata;
+
+await lsp8.setDataForTokenId(
+  tokenId,
+  key,
+  encodedVerifiableUri,
+);
+```
+
+## Production checklist
+
+- Decide which fields are immutable, issuer-controlled, user-controlled, or app-controlled.
+- Store token-level metadata through token-level data keys instead of burying all variation in one off-chain endpoint.
+- Add verification data for media and metadata references where authenticity matters.
+- Keep UI cache invalidation explicit; dynamic metadata still needs product-level refresh behavior.
+- Use `bytes32` token IDs deliberately: number, string, address, and hash formats all communicate different semantics.
+
+## When ERC721 is still fine
+
+Keep ERC721 when marketplace compatibility is the overriding requirement and metadata can remain static or simple. Use LSP8 when metadata is a core product surface: evolving game items, identity-linked NFTs, dynamic creator assets, membership credentials, redeemable goods, or NFTs whose token ID should represent something more meaningful than an incrementing number.
+
+## Related guides
+
+- [ERC20 metadata limits and extensible token metadata](./erc20-token-metadata-limitations.mdx)
+- [Why NFT safe transfers still fail in EVM apps](./erc721-safe-transfer-problems.mdx)
+- [ERC1155 complexity: when multi-asset contracts become hard to index](./erc1155-multi-asset-complexity.mdx)
+
+## Implementation docs
+
+- [LSP8 Identifiable Digital Asset](../standards/tokens/LSP8-Identifiable-Digital-Asset.md)
+- [LSP4 Digital Asset Metadata](../standards/tokens/LSP4-Digital-Asset-Metadata.md)
+- [Create an LSP8 NFT collection](../learn/digital-assets/nft/create-nft-collection-lsp8.md)
+- [Set LSP8 NFT metadata](../learn/digital-assets/nft/set-nft-metadata.md)
+- [Read LSP8 NFT metadata](../learn/digital-assets/nft/read-nft-metadata.md)
+- [ERC721 to LSP8 migration checklist](./migrate/erc721-to-lsp8.mdx)

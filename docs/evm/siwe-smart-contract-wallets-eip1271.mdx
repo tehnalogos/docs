@@ -1,0 +1,172 @@
+---
+title: 'SIWE Smart Contract Wallet Login with EIP-1271'
+sidebar_label: SIWE + EIP-1271
+sidebar_position: 10
+description: SIWE is easy for EOAs but smart contract wallets need EIP-1271. Learn how to verify Universal Profile login without treating controller keys as users.
+keywords:
+  - SIWE smart contract wallet
+  - EIP-1271 login
+  - Sign-In with Ethereum smart account
+  - smart wallet authentication
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={[
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: 'EVM Builders',
+          item: 'https://docs.lukso.tech/evm/',
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: 'SIWE Smart Contract Wallet Login',
+          item:
+            'https://docs.lukso.tech/evm/siwe-smart-contract-wallets-eip1271/',
+        },
+      ],
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'TechArticle',
+      headline: 'SIWE Smart Contract Wallet Login with EIP-1271',
+      description:
+        'Explains how SIWE verification changes for smart contract wallets, why EOA recovery is not enough, and how LUKSO Universal Profiles use EIP-1271 signature validation.',
+      author: { '@type': 'Organization', name: 'LUKSO' },
+      publisher: { '@type': 'Organization', name: 'LUKSO' },
+      about: [
+        'Sign-In with Ethereum',
+        'SIWE',
+        'EIP-1271',
+        'Smart contract wallets',
+        'Universal Profiles',
+        'Smart account authentication',
+      ],
+      mainEntityOfPage:
+        'https://docs.lukso.tech/evm/siwe-smart-contract-wallets-eip1271/',
+      isAccessibleForFree: true,
+      proficiencyLevel: 'Intermediate',
+    },
+  ]}
+/>
+
+# SIWE smart contract wallet login with EIP-1271
+
+Sign-In with Ethereum is straightforward for EOAs: recover the signer from the signature and compare it to the address in the SIWE message. Smart contract wallets break that assumption because the account address is a contract and the signing key may be only one controller.
+
+## Direct answer
+
+For smart contract wallets, do not authenticate users by EOA recovery alone. Verify the SIWE message normally, then validate the signature against the smart account with EIP-1271 `isValidSignature(bytes32,bytes)`.
+
+For LUKSO, the user identity should be the Universal Profile address. A controller signs the SIWE message, and the app verifies that signature against the Universal Profile contract. If the controller has the right permission, the Universal Profile returns the EIP-1271 magic value `0x1626ba7e`.
+
+## Why this is hard with EOA-only SIWE
+
+EOA-only SIWE assumes one address is both the account and the signing key. Smart accounts separate those roles:
+
+- **the account is a contract:** `ecrecover` returns a controller, not the account;
+- **controllers can rotate:** the long-term user identity should survive key changes;
+- **permissions matter:** a key may be allowed to sign but not transfer assets, or vice versa;
+- **multiple controllers can exist:** hardware wallet, session key, mobile key, or recovery key;
+- **login storage can drift:** apps that store the controller address accidentally fragment one user into many accounts.
+
+## Common smart-wallet login mistakes
+
+| Mistake | Why it happens | Result |
+| --- | --- | --- |
+| Recover the EOA and store it as the user | Works for classic wallets | The smart account identity is lost |
+| Skip EIP-1271 | Simpler backend code | Contract accounts fail login or are misidentified |
+| Trust the connected account without SIWE checks | Faster prototype | Domain, nonce, chain, and replay checks are missing |
+| Treat every controller as a separate user | Easy database model | One Universal Profile becomes many app accounts |
+| Verify only on the client | Convenient UX | Server-side sessions can be forged or replayed |
+
+## How LUKSO solves it
+
+Universal Profiles implement EIP-1271 signature validation. The controller signs a SIWE message whose `address` is the Universal Profile address. Your app verifies the SIWE fields, hashes the prepared message, and calls `isValidSignature` on the Universal Profile.
+
+```ts
+import { ethers } from 'ethers';
+import { SiweMessage } from 'siwe';
+import UniversalProfile from '@lukso/lsp-smart-contracts/artifacts/UniversalProfile.json';
+
+const provider = new ethers.BrowserProvider(window.lukso);
+const [profileAddress] = await provider.send('eth_requestAccounts', []);
+const signer = await provider.getSigner(profileAddress);
+const nonce = await fetch('/api/auth/nonce').then((response) =>
+  response.text(),
+);
+
+const message = new SiweMessage({
+  domain: window.location.host,
+  address: profileAddress,
+  statement: 'Sign in with your Universal Profile.',
+  uri: window.location.origin,
+  version: '1',
+  chainId: Number((await provider.getNetwork()).chainId),
+  nonce,
+});
+
+const preparedMessage = message.prepareMessage();
+const signature = await signer.signMessage(preparedMessage);
+
+const universalProfile = new ethers.Contract(
+  profileAddress,
+  UniversalProfile.abi,
+  provider,
+);
+
+const magicValue = await universalProfile.isValidSignature(
+  ethers.hashMessage(preparedMessage),
+  signature,
+);
+
+if (magicValue !== '0x1626ba7e') {
+  throw new Error('Invalid smart-account signature');
+}
+```
+
+On the server, still validate the SIWE message fields before creating a session: domain, URI, nonce, expiration, not-before time, chain ID, and the expected Universal Profile address. EIP-1271 answers "is this signature valid for this smart account?" It does not replace normal SIWE replay and origin checks.
+
+## EOA SIWE vs smart-account SIWE
+
+| Step | EOA wallet | Universal Profile |
+| --- | --- | --- |
+| User identity stored by the app | EOA address | Universal Profile address |
+| Who signs | Same EOA | Controller of the Universal Profile |
+| Verification method | Recover signer and compare address | Call `isValidSignature` on the profile |
+| Key rotation | Changes user identity unless handled manually | Controller can change while profile identity remains |
+| Permission model | Private key has full account control | LSP6 permissions can scope controller capabilities |
+
+## Backend verification checklist
+
+- Parse the SIWE message and verify domain, URI, version, chain ID, nonce, and time bounds.
+- Store the Universal Profile address as the user ID, not the controller address.
+- Hash the exact prepared SIWE message that the user signed.
+- Call `isValidSignature(hash, signature)` on the Universal Profile contract.
+- Accept the login only when the return value is `0x1626ba7e`.
+- Consume the nonce after a successful login so the signature cannot be replayed.
+- Re-check permissions on sensitive actions; login permission is not the same as asset-transfer permission.
+
+## When EOA-only SIWE is still fine
+
+EOA recovery is enough when your product intentionally supports only EOAs and does not need smart accounts. Use EIP-1271 verification when contract accounts, smart wallets, Universal Profiles, delegated controllers, or key rotation should be first-class parts of the login model.
+
+## Related guides
+
+- [Smart contract wallet permissions on EVM](./smart-contract-wallet-permissions.mdx)
+- [Gasless transactions on EVM for smart accounts](./gasless-transactions-smart-accounts.mdx)
+- [Account abstraction beyond EIP-4337](./eip4337-alternatives.mdx)
+
+## Implementation docs
+
+- [Log in a Universal Profile with SIWE](../learn/universal-profile/connect-profile/siwe.md)
+- [UniversalProfile contract overview](../contracts/overview/UniversalProfile.md)
+- [SIWE to Universal Profile migration](./migrate/siwe-to-universal-profile.mdx)
+- [LSP6 Key Manager](../standards/access-control/lsp6-key-manager.md)

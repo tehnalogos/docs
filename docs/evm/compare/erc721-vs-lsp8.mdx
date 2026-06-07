@@ -1,0 +1,84 @@
+---
+title: 'ERC721 vs LSP8 | How to Migrate NFT Collections to LUKSO'
+sidebar_label: ERC721 vs LSP8
+sidebar_position: 3
+description: Compare ERC721 and LSP8, including token IDs, metadata, transfer hooks, and NFT migration steps for LUKSO.
+keywords:
+  - ERC721 vs LSP8
+  - migrate ERC721 to LSP8
+  - LUKSO NFT standard
+  - dynamic NFT metadata EVM
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={{
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: 'ERC721 vs LSP8',
+    description:
+      'Technical comparison of ERC721 and LSP8 for EVM developers migrating NFT collections to LUKSO.',
+    author: { '@type': 'Organization', name: 'LUKSO' },
+    publisher: { '@type': 'Organization', name: 'LUKSO' },
+    about: ['ERC721', 'LSP8', 'NFT migration', 'EVM', 'Metadata'],
+    mainEntityOfPage:
+      'https://docs.lukso.tech/evm/compare/erc721-vs-lsp8/',
+    isAccessibleForFree: true,
+  }}
+/>
+
+# ERC721 vs LSP8
+
+LSP8 is LUKSO's identifiable digital asset standard. It covers NFT-style assets with `bytes32` token IDs, ERC725Y metadata, LSP1 transfer notifications, and Universal Profile compatibility.
+
+## Quick decision
+
+| Use ERC721 when | Use LSP8 when |
+| --- | --- |
+| You need direct compatibility with ERC721-only marketplaces or contracts. | You want NFTs that integrate with Universal Profiles and LSP receiver hooks. |
+| Numeric `uint256` token IDs are enough. | Token IDs need to represent richer identifiers, hashes, serials, or external references. |
+| Metadata can remain URI-oriented and mostly static. | Collection or token metadata should use ERC725Y keys and VerifiableURI patterns. |
+
+## What changes in code?
+
+```solidity title="ERC721 transferFrom"
+function transferFrom(
+  address from,
+  address to,
+  uint256 tokenId
+) external;
+```
+
+```solidity title="LSP8 transfer"
+function transfer(
+  address from,
+  address to,
+  bytes32 tokenId,
+  bool force,
+  bytes calldata data
+) external;
+```
+
+LSP8 token IDs are `bytes32`, not `uint256`. This makes migration straightforward for numeric IDs by casting them, but also allows more expressive ID schemes for new collections.
+
+## What changes in UX?
+
+LSP8 assets can be safer to receive because the sender can require recipient contracts to support LSP1. Universal Profiles can also react to incoming assets and maintain received-asset data, which improves profile-centered inventory and app experiences.
+
+## Migration checklist
+
+1. Replace ERC721 inheritance with [`LSP8IdentifiableDigitalAsset`](../../standards/tokens/LSP8-Identifiable-Digital-Asset.md).
+2. Choose a token ID format and convert legacy IDs to `bytes32`.
+3. Move collection metadata to LSP4 / ERC725Y data keys.
+4. Replace ERC721 approval flows with LSP8 operator authorization where needed.
+5. Update transfer calls to pass `force` and `data`.
+6. Test transfers to EOAs, Universal Profiles, and contracts without LSP1 support.
+
+## Implementation references
+
+- [Full ERC721 to LSP8 migration guide](../migrate/erc721-to-lsp8.mdx)
+- [Existing ERC721 migration tutorial](../../learn/migrate/migrate-erc721-to-lsp8.md)
+- [LSP8 Identifiable Digital Asset standard](../../standards/tokens/LSP8-Identifiable-Digital-Asset.md)
+- [Create an LSP8 NFT collection](../../learn/digital-assets/nft/create-nft-collection-lsp8.md)
+- [LSP8 contract reference](../../contracts/contracts/LSP8IdentifiableDigitalAsset/LSP8IdentifiableDigitalAsset.md)

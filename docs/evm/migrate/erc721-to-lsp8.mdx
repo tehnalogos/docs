@@ -1,0 +1,108 @@
+---
+title: 'How to Migrate ERC721 to LSP8 on LUKSO'
+sidebar_label: ERC721 to LSP8
+sidebar_position: 3
+description: Step-by-step decision guide for migrating ERC721 NFT collections to LSP8 on LUKSO.
+keywords:
+  - migrate ERC721 to LSP8
+  - ERC721 LUKSO migration
+  - LSP8 NFT migration
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={{
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: 'How to migrate ERC721 to LSP8',
+    description:
+      'Step-by-step migration guide for moving an ERC721 NFT collection to LSP8 on LUKSO.',
+    author: { '@type': 'Organization', name: 'LUKSO' },
+    publisher: { '@type': 'Organization', name: 'LUKSO' },
+    proficiencyLevel: 'Intermediate',
+    mainEntityOfPage: 'https://docs.lukso.tech/evm/migrate/erc721-to-lsp8/',
+    isAccessibleForFree: true,
+  }}
+/>
+
+# How to migrate ERC721 to LSP8
+
+Use this page as the migration checklist. The full implementation walkthrough remains in the existing [ERC721 to LSP8 tutorial](../../learn/migrate/migrate-erc721-to-lsp8.md).
+
+## Short answer
+
+Migrating ERC721 to LSP8 changes three important assumptions: token IDs are `bytes32`, transfers include `force` and `data`, and metadata can use ERC725Y/LSP4/LSP8 data instead of depending only on `tokenURI`.
+
+The migration should preserve collector-facing identity while giving the new collection richer metadata and receiver behavior.
+
+## Before you start
+
+- Decide how legacy `uint256` token IDs map to LSP8 `bytes32` token IDs.
+- Inventory marketplace, indexer, and app code that assumes ERC721 events or approval methods.
+- Decide whether each transfer should allow non-LSP1 recipients.
+- Plan where collection and token metadata will live.
+- Decide whether token IDs should remain number-compatible, become address-based, or use another LSP8 token ID format.
+- Decide how legacy `tokenURI` content maps to LSP4 collection metadata and token-level data.
+
+## Main deltas
+
+| ERC721 concern | LSP8 migration action |
+| --- | --- |
+| `uint256 tokenId` | Convert to `bytes32 tokenId`. |
+| `tokenURI` | Use LSP4 / LSP8 metadata keys and VerifiableURI patterns. |
+| `transferFrom` | Use `transfer(from, to, tokenId, force, data)`. |
+| `approve` / `setApprovalForAll` | Use LSP8 operator authorization. |
+| Safe receiving | Use LSP1 receiver checks through `force`. |
+
+## Token ID mapping
+
+If your ERC721 collection uses sequential numeric IDs, preserve them by converting each `uint256` to a `bytes32` value consistently.
+
+```ts
+import { pad, toHex } from 'viem';
+
+const legacyTokenId = 42n;
+const lsp8TokenId = pad(toHex(legacyTokenId), { size: 32 });
+```
+
+If the collection represents accounts, sub-collections, external objects, or hashes, choose the LSP8 token ID format that matches the product model instead of forcing every ID into a sequential number.
+
+## Metadata read example
+
+```ts
+import { ERC725YDataKeys } from '@lukso/lsp-smart-contracts';
+
+const metadataKey = ERC725YDataKeys.LSP4.LSP4Metadata;
+const value = await nftContract.getData(metadataKey);
+console.log(value);
+```
+
+## Migration flow
+
+1. Choose the LSP8 token ID format and publish the legacy-to-new ID mapping.
+2. Deploy the LSP8 collection with the correct owner and metadata model.
+3. Encode collection metadata with LSP4 metadata keys.
+4. Mint or recreate token ownership using the mapped `bytes32` token IDs.
+5. Move token-specific metadata into token-level data when the app needs dynamic or per-token metadata.
+6. Update app transfer calls to include `force` and `data`.
+7. Update indexers and marketplace adapters to consume LSP8 events and metadata.
+
+## Production checklist
+
+1. Port inheritance to [`LSP8IdentifiableDigitalAsset`](../../contracts/contracts/LSP8IdentifiableDigitalAsset/LSP8IdentifiableDigitalAsset.md).
+2. Normalize or preserve token IDs as `bytes32`.
+3. Encode collection metadata using LSP4 metadata keys.
+4. Update transfer and operator calls.
+5. Add tests for `force`, receiver support, and metadata reads.
+6. Update indexers to consume LSP8 events.
+7. Keep legacy ERC721 provenance visible in metadata or migration documentation.
+8. Test wallet/profile receiving behavior for EOAs, Universal Profiles, and non-LSP1 contracts.
+
+## Next docs
+
+- [ERC721 vs LSP8 comparison](../compare/erc721-vs-lsp8.mdx)
+- [Dynamic NFT metadata and bytes32 token IDs](../erc721-dynamic-metadata.mdx)
+- [Full ERC721 to LSP8 tutorial](../../learn/migrate/migrate-erc721-to-lsp8.md)
+- [Create an LSP8 NFT collection](../../learn/digital-assets/nft/create-nft-collection-lsp8.md)
+- [LSP8 standard](../../standards/tokens/LSP8-Identifiable-Digital-Asset.md)

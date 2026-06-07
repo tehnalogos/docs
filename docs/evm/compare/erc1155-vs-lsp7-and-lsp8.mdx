@@ -1,0 +1,116 @@
+---
+title: 'ERC1155 vs LSP7 and LSP8 | Multi-Asset Migration on LUKSO'
+sidebar_label: ERC1155 vs LSP7/LSP8
+sidebar_position: 4
+description: Map ERC1155 fungible, semi-fungible, and NFT assets to LSP7 and LSP8 on LUKSO.
+keywords:
+  - ERC1155 vs LSP7
+  - ERC1155 vs LSP8
+  - ERC1155 migration LUKSO
+  - multi asset EVM standard
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={{
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: 'ERC1155 vs LSP7 and LSP8',
+    description:
+      'Decision guide for mapping ERC1155 multi-asset contracts to LUKSO LSP7 and LSP8 assets.',
+    author: { '@type': 'Organization', name: 'LUKSO' },
+    publisher: { '@type': 'Organization', name: 'LUKSO' },
+    about: ['ERC1155', 'LSP7', 'LSP8', 'Multi-asset migration', 'EVM'],
+    mainEntityOfPage:
+      'https://docs.lukso.tech/evm/compare/erc1155-vs-lsp7-and-lsp8/',
+    isAccessibleForFree: true,
+  }}
+/>
+
+# ERC1155 vs LSP7 and LSP8
+
+ERC1155 puts many asset IDs inside one contract. On LUKSO, the usual migration decision is whether each asset behaves more like an LSP7 amount-based asset or an LSP8 identifiable asset.
+
+## Direct answer
+
+Use **LSP7** when the ERC1155 ID represents a balance: points, credits, editions, tickets, memberships, or any asset where many users can hold an amount of the same thing. Use **LSP8** when the ERC1155 ID represents a unique object: one collectible, one credential, one character, one license, or one item that needs token-level metadata.
+
+The migration is not always "one ERC1155 contract becomes one LUKSO contract." The better model is usually "each asset type gets the LSP contract that matches its behavior."
+
+## Decision table
+
+| ERC1155 asset behavior | LUKSO fit | Why |
+| --- | --- | --- |
+| Many holders own divisible balances of the same ID. | [LSP7](../../standards/tokens/LSP7-Digital-Asset.md) | A balance is the core primitive. |
+| Many holders own whole-number editions of the same ID. | LSP7 with non-divisible units | Editions behave like amount-based assets even when decimals are disabled. |
+| Each ID is a unique item. | [LSP8](../../standards/tokens/LSP8-Identifiable-Digital-Asset.md) | The ID is the asset identity. |
+| Each ID needs its own metadata that changes independently. | LSP8 | LSP8 supports token-level ERC725Y data. |
+| One ERC1155 contract mixes balances and unique objects. | Split into LSP7 and LSP8 contracts | The contract topology should follow the product semantics. |
+| The product depends on batch transfer ergonomics. | LSP7/LSP8 batch methods or Universal Profile batch execution | Preserve UX with explicit LSP calls. |
+
+## What changes from ERC1155?
+
+ERC1155 makes contract consolidation the default. LSP7 and LSP8 make asset semantics explicit and add LUKSO-native metadata and receiver behavior. That usually improves discoverability for Universal Profiles, but it can require a clearer contract topology.
+
+| ERC1155 concept | LSP migration question |
+| --- | --- |
+| `id` | Is this a balance bucket or an identifiable token? |
+| `amount` | Does the product need decimals, whole editions, or exactly one owner per item? |
+| `uri(id)` | Should metadata be contract-level LSP4 data, token-level LSP8 data, or both? |
+| `safeTransferFrom` | Should recipients be required to support LSP1 receiver behavior, or should the transfer use `force`? |
+| `safeBatchTransferFrom` | Should batching happen on the asset contract or through Universal Profile `executeBatch`? |
+
+## Example inventory pass
+
+Before writing contracts, classify the legacy ERC1155 IDs by behavior. This avoids forcing every ID into the same LSP pattern.
+
+```ts
+type LegacyAsset = {
+  id: bigint;
+  symbol: string;
+  behavior: 'fungible' | 'edition' | 'unique';
+  needsTokenLevelMetadata: boolean;
+};
+
+const migrationPlan = legacyAssets.map((asset: LegacyAsset) => {
+  if (asset.behavior === 'unique' || asset.needsTokenLevelMetadata) {
+    return { id: asset.id, standard: 'LSP8' };
+  }
+
+  return { id: asset.id, standard: 'LSP7' };
+});
+```
+
+## What LSPs solve that ERC1155 leaves to apps
+
+- **Asset semantics:** LSP7 and LSP8 make the balance-vs-identity distinction explicit.
+- **Metadata:** LSP4 and ERC725Y let assets expose richer data than a single URI pattern.
+- **Token-level data:** LSP8 can store and retrieve data for a specific `bytes32` token ID.
+- **Receiver behavior:** LSP1-compatible recipients can react to incoming assets, reject them, register them, or forward them.
+- **Profile discovery:** Universal Profiles can maintain received-asset lists instead of relying only on off-chain indexer inference.
+
+## Migration checklist
+
+1. Inventory each ERC1155 token ID and classify it as fungible, semi-fungible, or unique.
+2. Choose LSP7 for amount-based assets and LSP8 for identifiable assets.
+3. Preserve legacy IDs in ERC725Y metadata when users or indexers need continuity.
+4. Recreate batch actions through Universal Profile batch execution or app-level transactions.
+5. Test incoming asset registration on Universal Profiles.
+6. Decide whether each transfer should require LSP1 recipient support or use `force`.
+7. Keep a public mapping from legacy ERC1155 IDs to new LSP contract addresses and token IDs.
+
+## Production pitfalls
+
+- Do not migrate every ERC1155 ID to LSP8 only because it has an ID. ERC1155 IDs often represent balance classes.
+- Do not collapse every asset into one LSP contract if discovery, metadata, ownership, or permissions need to differ.
+- Do not lose legacy ID continuity. Store old IDs in metadata or publish a migration map for wallets, marketplaces, and indexers.
+- Do not ignore recipient behavior. LSP7/LSP8 transfer flows can intentionally protect smart accounts from unwanted assets.
+
+## Implementation references
+
+- [Choose between LSP7 and LSP8](../../learn/digital-assets/choose-lsp7-vs-lsp8.md)
+- [LSP7 Digital Asset standard](../../standards/tokens/LSP7-Digital-Asset.md)
+- [LSP8 Identifiable Digital Asset standard](../../standards/tokens/LSP8-Identifiable-Digital-Asset.md)
+- [Transfer tokens and NFTs in batch](../../learn/digital-assets/transfer-batch.md)
+- [LUKSO Standards overview](../../standards/tokens/introduction.md)

@@ -1,0 +1,121 @@
+---
+title: 'ERC725Y Developer Map for LUKSO'
+sidebar_label: ERC725Y Developer Map
+sidebar_position: 2
+description: Find the ERC725Y, LSP2, LSP3, LSP4, erc725.js, and lsp-utils docs needed to read and write LUKSO metadata.
+keywords:
+  - ERC725Y tutorial
+  - ERC725Y developer map
+  - LUKSO metadata
+  - erc725.js
+  - LSP2 JSON schema
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={{
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: 'ERC725Y developer map for LUKSO',
+    description:
+      'Reference map for ERC725Y storage, LSP JSON schemas, profile metadata, digital asset metadata, and LUKSO metadata tooling.',
+    author: { '@type': 'Organization', name: 'LUKSO' },
+    publisher: { '@type': 'Organization', name: 'LUKSO' },
+    about: ['ERC725Y', 'LSP2', 'LSP3', 'LSP4', 'erc725.js', 'lsp-utils'],
+    mainEntityOfPage:
+      'https://docs.lukso.tech/evm/reference/erc725y-developer-map/',
+    isAccessibleForFree: true,
+  }}
+/>
+
+# ERC725Y developer map for LUKSO
+
+ERC725Y is the generic key-value storage model used by Universal Profiles and LSP digital assets. Most LUKSO metadata work is a combination of ERC725Y storage, LSP2 JSON schemas, and tooling that encodes or decodes known keys.
+
+## Short answer
+
+ERC725Y is the storage layer. LSP2 defines how keys and values are described. LSP3, LSP4, LSP5, LSP6, and LSP12 define common data keys for profiles, assets, received assets, permissions, and issued assets. `erc725.js` and `lsp-utils` are the developer tools that keep apps from manually hashing, encoding, and decoding those keys.
+
+## Concept map
+
+| Concept | Docs |
+| --- | --- |
+| Generic key-value storage | [ERC725](../../standards/erc725.md) |
+| JSON schema structure | [LSP2 JSON Schema](../../standards/metadata/lsp2-json-schema.md) |
+| Universal Profile metadata | [LSP3 Profile Metadata](../../standards/metadata/lsp3-profile-metadata.md) |
+| Digital asset metadata | [LSP4 Digital Asset Metadata](../../standards/tokens/LSP4-Digital-Asset-Metadata.md) |
+| Received assets | [LSP5 Received Assets](../../standards/metadata/lsp5-received-assets.md) |
+| Issued assets | [LSP12 Issued Assets](../../standards/metadata/lsp12-issued-assets.md) |
+| Controller permissions | [LSP6 Key Manager](../../standards/access-control/lsp6-key-manager.md) |
+
+## Tool map
+
+| Task | Tool docs |
+| --- | --- |
+| Encode and decode ERC725Y data | [erc725.js getting started](../../tools/dapps/erc725js/getting-started.md) |
+| Generate data keys and decode permissions | [lsp-utils getting started](../../tools/dapps/lsp-utils/getting-started.md) |
+| Inspect live profile and asset data | [ERC725 Inspect](https://erc725-inspect.lukso.tech/?network=lukso+mainnet) |
+| Use Solidity constants and data keys | [LSP smart contracts constants](../../tools/lsp-smart-contracts/constants.md) |
+
+## Common developer tasks
+
+| Task | Start with |
+| --- | --- |
+| Read a Universal Profile name, description, links, or avatar | LSP3 schema with `erc725.js` |
+| Edit Universal Profile metadata | `encodeData` with LSP3 schema, then `setData`/`setDataBatch` |
+| Read an asset's rich metadata | LSP4 schema and the asset contract address |
+| Track assets received by a profile | `LSP5ReceivedAssets[]` |
+| Track assets issued by a profile | `LSP12IssuedAssets[]` |
+| Inspect a controller's permissions | `AddressPermissions:Permissions:<address>` |
+| Restrict app metadata writes | `AddressPermissions:AllowedERC725YDataKeys:<address>` |
+
+## Read profile metadata
+
+```ts
+import { ERC725 } from '@erc725/erc725.js';
+import profileSchema from '@erc725/erc725.js/schemas/LSP3ProfileMetadata.json';
+
+const erc725 = new ERC725(
+  profileSchema,
+  universalProfileAddress,
+  'https://rpc.mainnet.lukso.network',
+);
+
+const profile = await erc725.getData('LSP3Profile');
+```
+
+## Encode metadata writes
+
+```ts
+import { ERC725 } from '@erc725/erc725.js';
+import profileSchema from '@erc725/erc725.js/schemas/LSP3ProfileMetadata.json';
+
+const erc725 = new ERC725(profileSchema);
+
+const encoded = erc725.encodeData([
+  {
+    keyName: 'LSP3Profile',
+    value: {
+      json: profileMetadata,
+      url: 'ipfs://QmProfileMetadata',
+    },
+  },
+]);
+
+await universalProfile.setDataBatch(encoded.keys, encoded.values);
+```
+
+## What to avoid
+
+- Do not hard-code hashed data keys when a schema or helper can generate them.
+- Do not treat ERC725Y as arbitrary app storage without a namespace or schema.
+- Do not store large JSON blobs directly on-chain when a verifiable URI is the intended pattern.
+- Do not mix profile metadata, asset metadata, permissions, and app-specific data without documenting which LSP key family owns each value.
+
+## Recipes
+
+- [Read and write Universal Profile metadata](../recipes/read-and-write-profile-metadata.mdx)
+- [Deploy a Universal Profile](../recipes/deploy-universal-profile.mdx)
+- [Smart account permissions](../use-cases/smart-account-permissions.mdx)
+- [ERC20 metadata beyond name, symbol, decimals](../erc20-token-metadata-limitations.mdx)

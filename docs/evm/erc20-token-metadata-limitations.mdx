@@ -1,0 +1,152 @@
+---
+title: 'ERC20 Metadata Limits and Extensible Token Metadata'
+sidebar_label: ERC20 Metadata Limits
+sidebar_position: 2
+description: ERC20 metadata is limited to basic display fields and off-chain conventions. Learn how ERC725Y and LSP4 make token metadata extensible on LUKSO.
+keywords:
+  - ERC20 token metadata
+  - ERC20 metadata limitations
+  - token metadata EVM
+  - extensible token metadata
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={[
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: 'EVM Builders',
+          item: 'https://docs.lukso.tech/evm/',
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: 'ERC20 Metadata Limits',
+          item:
+            'https://docs.lukso.tech/evm/erc20-token-metadata-limitations/',
+        },
+      ],
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'TechArticle',
+      headline: 'ERC20 Metadata Limits and Extensible Token Metadata',
+      description:
+        'Explains why ERC20 token metadata usually becomes app-specific and how LUKSO LSP7 assets use ERC725Y and LSP4 metadata keys for extensible, discoverable token metadata.',
+      author: { '@type': 'Organization', name: 'LUKSO' },
+      publisher: { '@type': 'Organization', name: 'LUKSO' },
+      about: [
+        'ERC20 metadata',
+        'Token metadata',
+        'ERC725Y',
+        'LSP4 Digital Asset Metadata',
+        'LSP7 Digital Asset',
+      ],
+      mainEntityOfPage:
+        'https://docs.lukso.tech/evm/erc20-token-metadata-limitations/',
+      isAccessibleForFree: true,
+      proficiencyLevel: 'Beginner',
+    },
+  ]}
+/>
+
+# ERC20 metadata limits and extensible token metadata
+
+ERC20 gives EVM apps a shared balance and transfer interface. It does not give teams a general metadata model. Once a token needs images, descriptions, creator links, issuer context, verification data, or post-deployment metadata updates, developers usually leave the ERC20 interface and rely on app-specific conventions.
+
+## Direct answer
+
+ERC20 metadata is hard to extend because the familiar `name()`, `symbol()`, and `decimals()` fields are display helpers, not a metadata storage model. They cannot describe images, links, attributes, issuer relationships, verification hashes, dynamic metadata, or future fields without custom methods or off-chain registries.
+
+LUKSO solves this by making metadata part of the asset contract. LSP7 assets use ERC725Y key-value storage and LSP4 metadata keys, so wallets, explorers, profiles, and apps can read richer token metadata through a shared interface.
+
+## Why this is hard with standard ERC20
+
+Most ERC20 integrations expect only a contract address, balance methods, allowances, transfer methods, and sometimes basic display metadata. That is enough for simple fungible tokens, but it pushes product metadata into side channels.
+
+Common gaps:
+
+- **images and icons:** no standard way to attach token media to the contract;
+- **descriptions and links:** websites, social links, docs, and external URLs live in token lists or app databases;
+- **issuer context:** apps cannot reliably tell which profile, creator, or organization issued the token;
+- **verification:** metadata JSON and media hashes are not part of the ERC20 interface;
+- **updates:** adding new metadata fields after deployment means adding custom storage or external registries;
+- **discovery:** wallets and indexers need per-app logic to know where richer metadata lives.
+
+## Common ERC20 metadata approaches
+
+| Approach | Why teams use it | Weakness |
+| --- | --- | --- |
+| Token lists | Easy for wallets and DeFi frontends | Centralized curation, slow updates, app-specific trust |
+| Custom contract methods | Direct onchain reads | Every app must learn a new ABI |
+| Marketplace or wallet registries | Good UX for known assets | Metadata is not portable across the ecosystem |
+| `tokenURI`-like extension | Familiar from NFTs | Not part of ERC20 and not consistently indexed |
+| Off-chain APIs | Flexible and cheap | Breaks if the API disappears or changes |
+
+## How LUKSO solves it
+
+LSP7 Digital Asset contracts use ERC725Y, a standardized key-value store. LSP4 Digital Asset Metadata defines common metadata keys on top of that store. Metadata is therefore discoverable from the asset contract instead of being hidden in a registry that only one app controls.
+
+```ts
+import { ERC725YDataKeys } from '@lukso/lsp-smart-contracts';
+
+const metadataKey = ERC725YDataKeys.LSP4.LSP4Metadata;
+const metadata = await token.getData(metadataKey);
+```
+
+That `LSP4Metadata` value is a `VerifiableURI`: a reference to JSON metadata with verification information. The JSON can include names, descriptions, links, icons, images, attributes, and verification data for media files.
+
+## ERC20 metadata vs LSP7 metadata
+
+| Question | ERC20 pattern | LSP7/LSP4 pattern |
+| --- | --- | --- |
+| Where does basic metadata live? | Optional or common contract methods | Contract methods plus ERC725Y data keys |
+| Where do images and links live? | Token lists, registries, or custom APIs | LSP4 metadata referenced from the asset contract |
+| Can metadata be extended later? | Only with custom storage or external systems | Yes, with additional ERC725Y keys |
+| Can apps discover the metadata location generically? | Not reliably | Yes, read standard LSP4 keys |
+| Can metadata include verification data? | Not in the ERC20 interface | Yes, via VerifiableURI-based metadata |
+
+## What to implement
+
+If you are designing a new fungible asset and metadata matters to the product, use this model:
+
+1. Deploy an LSP7 Digital Asset.
+2. Prepare LSP4 metadata JSON with images, icons, links, and attributes.
+3. Encode the metadata reference as a VerifiableURI.
+4. Store it under the `LSP4Metadata` ERC725Y data key.
+5. Point apps, wallets, and indexers to `getData(LSP4Metadata)` as the canonical metadata source.
+
+For an existing ERC20, use a migration or wrapper only when the benefits outweigh compatibility costs. If the token's main surface is DeFi liquidity, a metadata sidecar may be less disruptive. If the token is a creator asset, membership token, social token, game asset, or profile-linked asset, LSP7 usually gives a cleaner metadata model.
+
+## Production checklist
+
+- Keep metadata visible and fetchable from the contract through standard data keys.
+- Store media verification data so clients can detect changed or tampered assets.
+- Make issuer and creator context explicit instead of relying only on branding in an image.
+- Keep off-chain JSON durable by using decentralized storage or a stable storage strategy.
+- Document which metadata fields your app treats as canonical and which are optional UI fields.
+
+## When ERC20 is still fine
+
+Keep plain ERC20 when your token mainly needs exchange, lending, AMM, or ERC20-only integration support and richer metadata is not a product requirement. Use LSP7 when the asset needs to be understood by wallets, profiles, marketplaces, creator tools, and social apps without every app maintaining its own token registry.
+
+## Related guides
+
+- [How to add ERC20 transfer hooks on EVM](./erc20-transfer-hooks.mdx)
+- [Dynamic NFT metadata on EVM and ERC721 limits](./erc721-dynamic-metadata.mdx)
+- [How to discover tokens owned or issued by an EVM account](./token-discovery-owned-issued-assets.mdx)
+
+## Implementation docs
+
+- [ERC725Y Generic Data Key/Value Store](../standards/erc725.md)
+- [LSP4 Digital Asset Metadata](../standards/tokens/LSP4-Digital-Asset-Metadata.md)
+- [LSP7 Digital Asset](../standards/tokens/LSP7-Digital-Asset.md)
+- [erc725.js tutorial](../tools/dapps/erc725js/getting-started.md)
+- [Create an LSP7 token](../learn/digital-assets/token/create-lsp7-token.md)
+- [ERC20 to LSP7 migration checklist](./migrate/erc20-to-lsp7.mdx)

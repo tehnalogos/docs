@@ -1,0 +1,140 @@
+---
+title: 'Modular Smart Accounts vs Universal Profiles'
+sidebar_label: Modular Accounts
+sidebar_position: 15
+description: ERC-6900 and ERC-7579 focus on modular smart-account execution. Compare that with Universal Profiles, LSP6 permissions, LSP17 extensions, and LSP20 verification.
+keywords:
+  - modular smart accounts
+  - ERC6900 smart accounts
+  - ERC7579 smart accounts
+  - smart account modules EVM
+  - Universal Profile vs modular account
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={[
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: 'EVM Builders',
+          item: 'https://docs.lukso.tech/evm/',
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: 'Modular Smart Accounts',
+          item:
+            'https://docs.lukso.tech/evm/modular-smart-accounts-vs-universal-profile/',
+        },
+      ],
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'TechArticle',
+      headline: 'Modular Smart Accounts vs Universal Profiles',
+      description:
+        'Compares modular smart-account standards such as ERC-6900 and ERC-7579 with LUKSO Universal Profiles, LSP6 permissions, LSP17 extensions, and LSP20 call verification.',
+      author: { '@type': 'Organization', name: 'LUKSO' },
+      publisher: { '@type': 'Organization', name: 'LUKSO' },
+      about: [
+        'Modular smart accounts',
+        'ERC-6900',
+        'ERC-7579',
+        'Universal Profiles',
+        'LSP17',
+        'LSP20',
+      ],
+      mainEntityOfPage:
+        'https://docs.lukso.tech/evm/modular-smart-accounts-vs-universal-profile/',
+      isAccessibleForFree: true,
+      proficiencyLevel: 'Intermediate',
+    },
+  ]}
+/>
+
+# Modular smart accounts vs Universal Profiles
+
+EVM teams increasingly want smart accounts that can add modules, plugins, hooks, validators, and session-key logic. Modular account standards such as ERC-6900 and ERC-7579 address parts of that problem.
+
+## Direct answer
+
+Modular smart-account standards focus on how accounts install and execute modular logic. Universal Profiles focus on the account as a full user or organization identity: metadata, permissions, receiver hooks, relay calls, call verification, and extensibility.
+
+On LUKSO, the relevant pieces are:
+
+- **LSP6 Key Manager** for scoped controllers and permissions;
+- **LSP17 Contract Extension** for adding function support after deployment;
+- **LSP20 Call Verification** for delegating call validation;
+- **LSP1 Universal Receiver** for incoming asset and notification hooks;
+- **ERC725Y** for extensible account and asset metadata.
+
+## Why this is hard with modular accounts alone
+
+Modules make accounts flexible, but flexibility creates product questions:
+
+- which module can do which action?
+- can users inspect installed permissions?
+- how does the account expose profile metadata?
+- how does the account receive and react to assets?
+- can new functions be added without losing the account address?
+- what is standardized across wallets versus specific to one module system?
+
+## Common EVM approaches
+
+| Approach | What it standardizes | What still needs product design |
+| --- | --- | --- |
+| ERC-6900-style plugins | Modular validation and execution concepts | User-facing identity and metadata |
+| ERC-7579-style modules | Minimal modular account interfaces | Rich account semantics |
+| Wallet-specific plugins | Fast feature delivery | Portability and inspection |
+| Proxy upgrades | Contract evolution | Governance, upgrade risk, and UX |
+| Custom session-key module | Scoped app flow | Cross-wallet permission meaning |
+
+## How LUKSO solves it
+
+Universal Profiles combine account semantics with extensibility primitives. They are not just execution shells. They are smart accounts with standardized metadata, permissions, receiver behavior, and call validation patterns.
+
+| Problem | LUKSO primitive |
+| --- | --- |
+| App and session permissions | LSP6 Key Manager |
+| Add support for future functions | LSP17 Contract Extension |
+| Verify calls through external logic | LSP20 Call Verification |
+| Receive assets and notifications | LSP1 Universal Receiver |
+| Store profile and app data | ERC725Y + LSP3/LSP2 |
+
+## Decision guide
+
+Use a modular account stack when your main requirement is compatibility with a specific account-abstraction module ecosystem. Use Universal Profiles when your app needs an account that is also a standardized identity, metadata container, permission system, and receiver.
+
+The two ideas are not mutually exclusive. LUKSO can integrate account-abstraction flows, but the core account primitives already solve many product problems that modular execution alone does not define.
+
+## Production checklist
+
+- Separate "can install modules" from "can safely explain permissions to users."
+- Prefer standardized permission data where app controllers need user-visible scope.
+- Use LSP17 only for well-reviewed extensions; extensions can impersonate the extendable contract in some contexts.
+- Use LSP20 when verification rules should be separated from the main contract logic.
+- Keep metadata and identity standards independent from any one execution module.
+
+## When modular account standards are still the better starting point
+
+Start with ERC-6900, ERC-7579, or another modular account stack when your app's main dependency is that ecosystem's module marketplace, bundler flow, or validator pattern. Start with Universal Profiles when identity, metadata, permissions, receiver hooks, and LUKSO asset standards are core to the app.
+
+## Related guides
+
+- [Account abstraction beyond EIP-4337](./eip4337-alternatives.mdx)
+- [Smart contract wallet permissions and session keys on EVM](./smart-contract-wallet-permissions.mdx)
+- [Smart account direct calls and call verification](./smart-account-call-verification-key-manager.mdx)
+- [How to add functionality to contracts after deployment](./contract-extension-after-deployment.mdx)
+
+## Implementation docs
+
+- [LSP17 Contract Extension](../standards/accounts/lsp17-contract-extension.md)
+- [LSP20 Call Verification](../standards/accounts/lsp20-call-verification.md)
+- [LSP6 Key Manager](../standards/access-control/lsp6-key-manager.md)
+- [Extend profile functionalities](../learn/universal-profile/advanced-guides/extend-profile-functionalities.md)

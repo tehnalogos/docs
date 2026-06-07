@@ -1,0 +1,74 @@
+---
+title: 'ERC1155 Complexity: When Multi-Asset Contracts Become Hard to Index'
+sidebar_label: ERC1155 Complexity
+sidebar_position: 7
+description: ERC1155 can pack many asset types into one contract, but that can complicate indexing, metadata, and product semantics. Learn the LUKSO alternative.
+keywords:
+  - ERC1155 complexity
+  - ERC1155 indexing
+  - multi asset contract EVM
+  - ERC1155 metadata problems
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={{
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: 'ERC1155 Complexity: When Multi-Asset Contracts Become Hard to Index',
+    description:
+      'Explains ERC1155 multi-asset complexity and how LUKSO maps fungible and identifiable assets to LSP7 and LSP8.',
+    author: { '@type': 'Organization', name: 'LUKSO' },
+    publisher: { '@type': 'Organization', name: 'LUKSO' },
+    about: ['ERC1155', 'Multi-asset contracts', 'Indexing', 'LSP7', 'LSP8'],
+    mainEntityOfPage:
+      'https://docs.lukso.tech/evm/erc1155-multi-asset-complexity/',
+    isAccessibleForFree: true,
+  }}
+/>
+
+# ERC1155 complexity: when multi-asset contracts become hard to index
+
+ERC1155 is powerful because one contract can represent many assets. That same flexibility can become a product and indexing problem when different IDs behave like currencies, editions, collectibles, access passes, or game items.
+
+## Short answer
+
+ERC1155 reduces contract count but pushes more meaning into token IDs and off-chain interpretation. LUKSO solves this by making asset semantics explicit: use LSP7 for amount-based assets and LSP8 for identifiable assets, both with standardized metadata and receiver behavior.
+
+## Why this is hard with ERC1155
+
+The contract can hold many asset types, but the standard does not tell apps what each ID means beyond balances and metadata URI conventions.
+
+Common pain points:
+
+- indexers need app-specific rules for token ID meaning;
+- metadata can vary by ID in nonstandard ways;
+- fungible, semi-fungible, and unique assets share one event stream;
+- wallets may struggle to display asset intent clearly;
+- migrations become harder when some IDs need different behavior.
+
+## What developers usually do instead
+
+Teams build subgraph mappings, metadata APIs, custom ID conventions, or separate registry contracts. Those add structure, but the structure lives outside the asset standard.
+
+## How LUKSO solves it
+
+LUKSO splits the decision by behavior. LSP7 covers amount-based assets. LSP8 covers individually identifiable assets. Both share metadata and receiver conventions, so apps can discover the asset type and read standardized data.
+
+| ERC1155 asset behavior | LUKSO fit |
+| --- | --- |
+| Divisible or amount-based balance | LSP7 |
+| Individually identifiable item | LSP8 |
+| Mixed collection with both | Split semantics across LSP7 and LSP8 |
+
+## When not to use this approach
+
+ERC1155 is still useful when contract consolidation matters more than explicit asset semantics. Use LSP7/LSP8 when wallet display, profile inventory, metadata, and asset behavior need to be unambiguous.
+
+## Implementation docs
+
+- [ERC1155 vs LSP7 and LSP8](./compare/erc1155-vs-lsp7-and-lsp8.mdx)
+- [Choose between LSP7 and LSP8](../learn/digital-assets/choose-lsp7-vs-lsp8.md)
+- [LSP7 Digital Asset](../standards/tokens/LSP7-Digital-Asset.md)
+- [LSP8 Identifiable Digital Asset](../standards/tokens/LSP8-Identifiable-Digital-Asset.md)

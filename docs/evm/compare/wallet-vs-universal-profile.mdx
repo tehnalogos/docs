@@ -1,0 +1,99 @@
+---
+title: 'Wallet vs Universal Profile | Smart Accounts on LUKSO'
+sidebar_label: Wallet vs Universal Profile
+sidebar_position: 5
+description: Compare externally owned wallets with LUKSO Universal Profiles, including metadata, permissions, recovery, login, and gasless execution.
+keywords:
+  - Universal Profile vs wallet
+  - smart account wallet
+  - LUKSO Universal Profile
+  - smart contract wallet permissions
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={{
+    '@context': 'https://schema.org',
+    '@type': 'TechArticle',
+    headline: 'Wallet vs Universal Profile',
+    description:
+      'Comparison of externally owned wallets and LUKSO Universal Profiles for developers building smart-account UX.',
+    author: { '@type': 'Organization', name: 'LUKSO' },
+    publisher: { '@type': 'Organization', name: 'LUKSO' },
+    about: ['Universal Profile', 'Smart account', 'Wallet', 'LSP0', 'LSP6'],
+    mainEntityOfPage:
+      'https://docs.lukso.tech/evm/compare/wallet-vs-universal-profile/',
+    isAccessibleForFree: true,
+  }}
+/>
+
+# Wallet vs Universal Profile
+
+A wallet is usually a key manager and signing surface. A Universal Profile is a smart-contract account with standardized metadata, permissions, receiver hooks, and signature verification.
+
+## Direct answer
+
+An EOA wallet controls an address with one private key. A Universal Profile is a smart contract account that can own assets, store profile metadata, verify signatures through the account contract, grant scoped permissions to multiple controllers, and react to incoming assets.
+
+For EVM developers, the practical difference is this: a wallet answers "who can sign?" while a Universal Profile answers "what is this account, what can each controller do, and how should it behave when apps or assets interact with it?"
+
+## Key differences
+
+| Capability | EOA wallet | Universal Profile |
+| --- | --- | --- |
+| Account identity | Address only unless apps add off-chain data. | ERC725Y metadata through LSP3 profile data. |
+| Access control | One private key controls the account. | LSP6 permissions can grant scoped controller access. |
+| Login | EOA signs a message directly. | Controllers can sign and the profile verifies through EIP-1271-compatible `isValidSignature`. |
+| Incoming assets | Apps infer ownership from token events. | LSP1 receiver hooks can register received assets. |
+| Gasless UX | Usually requires app-specific relayer logic. | LSP25 relay calls are built into the LUKSO account model. |
+
+## Problems Universal Profiles are designed to solve
+
+| Builder challenge | Universal Profile/LSP answer |
+| --- | --- |
+| Users lose one private key and lose the whole account. | Controllers can be added, removed, and separated through LSP6 permissions. |
+| Apps need profile data but every app invents its own schema. | ERC725Y plus LSP3 standardizes profile metadata. |
+| Wallets cannot tell whether a smart contract wants to receive a token. | LSP1 receiver hooks let accounts react to incoming assets. |
+| Dapps ask for broad permissions because the account has no native permission model. | LSP6 lets apps request scoped controller permissions. |
+| Smart-account login breaks EOA-style signature recovery. | Universal Profiles expose EIP-1271-compatible `isValidSignature`. |
+| Gas sponsorship is app-specific and hard to make portable. | LSP25 defines relay execution for Universal Profiles. |
+
+## Example: login identity
+
+With an EOA, the recovered signer is usually the user. With a Universal Profile, the Universal Profile address is the user identity and the controller key is only an authorized signer.
+
+```ts
+const validSignature = await universalProfile.isValidSignature(
+  hashedSiweMessage,
+  signature,
+);
+
+if (validSignature !== '0x1626ba7e') {
+  throw new Error('Universal Profile signature is invalid');
+}
+```
+
+## When it matters
+
+Universal Profiles are useful when the account needs to be more than a signing key: creator identity, app permissions, profile metadata, gasless onboarding, delegated control, or asset-aware receiving behavior.
+
+Use a normal wallet model when the app only needs simple signing and broad EVM wallet compatibility. Use Universal Profiles when account identity, metadata, permissions, recovery, receiver behavior, and sponsored actions are product requirements rather than add-ons.
+
+## Production checklist
+
+1. Store users by Universal Profile address, not by a temporary controller address.
+2. Verify smart-account signatures through `isValidSignature` when using SIWE.
+3. Ask for the smallest LSP6 permission set needed for the app flow.
+4. Read profile metadata from ERC725Y/LSP3 instead of inventing a separate profile source.
+5. Design incoming asset behavior with LSP1 and received-asset registration in mind.
+6. Treat gasless execution as an account capability, not only as a backend relayer trick.
+
+## Implementation references
+
+- [LSP0 ERC725Account standard](../../standards/accounts/lsp0-erc725account.md)
+- [LSP6 Key Manager standard](../../standards/access-control/lsp6-key-manager.md)
+- [Grant permissions](../../learn/universal-profile/key-manager/grant-permissions.md)
+- [Read Universal Profile data](../../learn/universal-profile/metadata/read-profile-data.md)
+- [Log in with SIWE](../../learn/universal-profile/connect-profile/siwe.md)
+- [Gasless onboarding with LSP25](../migrate/gasless-onboarding-with-lsp25.mdx)

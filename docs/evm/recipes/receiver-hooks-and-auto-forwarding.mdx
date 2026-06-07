@@ -1,0 +1,148 @@
+---
+title: 'Reject, Register, or Auto-Forward Received Tokens'
+sidebar_label: Receiver Hooks
+sidebar_position: 5
+description: Use LSP1 Universal Receiver hooks to reject spam assets, auto-register received tokens, and forward tokens from a smart account to a vault.
+keywords:
+  - reject unwanted ERC20 tokens smart wallet
+  - block spam tokens smart account
+  - auto forward received tokens to vault
+  - wallet auto register received assets
+  - Universal Receiver delegate
+---
+
+import StructuredData from '@site/src/components/StructuredData';
+
+<StructuredData
+  data={[
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          name: 'EVM Builders',
+          item: 'https://docs.lukso.tech/evm/',
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: 'Recipes',
+          item: 'https://docs.lukso.tech/evm/recipes/',
+        },
+        {
+          '@type': 'ListItem',
+          position: 3,
+          name: 'Receiver Hooks',
+          item:
+            'https://docs.lukso.tech/evm/recipes/receiver-hooks-and-auto-forwarding/',
+        },
+      ],
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'TechArticle',
+      headline: 'Reject, Register, or Auto-Forward Received Tokens',
+      description:
+        'Recipe for using LSP1 Universal Receiver delegates to reject unwanted assets, register received tokens, and forward received assets to a vault or treasury.',
+      author: { '@type': 'Organization', name: 'LUKSO' },
+      publisher: { '@type': 'Organization', name: 'LUKSO' },
+      about: [
+        'LSP1 Universal Receiver',
+        'Universal Receiver Delegate',
+        'Token receiver hooks',
+        'Spam token filtering',
+        'Asset forwarding',
+      ],
+      mainEntityOfPage:
+        'https://docs.lukso.tech/evm/recipes/receiver-hooks-and-auto-forwarding/',
+      isAccessibleForFree: true,
+      proficiencyLevel: 'Intermediate',
+    },
+  ]}
+/>
+
+# Reject, register, or auto-forward received tokens
+
+Smart accounts often need a policy for incoming assets: reject unwanted tokens, block spam before the transfer completes, auto-register received assets onchain, or forward received tokens to a vault.
+
+## Direct answer
+
+ERC20 cannot do this generically because the recipient is not called during a standard ERC20 transfer. ERC721 and ERC1155 have receiver callbacks, but each standard uses its own callback shape and does not provide one unified receiver function for every asset and notification type.
+
+LUKSO solves the smart-wallet receiver-policy problem with:
+
+- **LSP1 Universal Receiver**, a shared receiver function for assets and notifications;
+- **Universal Receiver Delegates**, contracts that implement reusable receive policies;
+- **LSP5 Received Assets**, the account-side list of assets a profile received;
+- **LSP9 Vaults**, isolated containers for assets that should not sit directly on the main profile.
+
+## Receiver policy patterns
+
+| Product requirement | Receiver behavior | LUKSO building block |
+| --- | --- | --- |
+| Reject unwanted tokens | Revert when the incoming asset, sender, or type ID is not allowed | LSP1 receiver or Universal Receiver Delegate |
+| Block spam tokens before receiving | Keep an allowlist, blocklist, or issuer rule in the receiver delegate | LSP1 + LSP6-controlled delegate configuration |
+| Auto-register received assets | Update the account's received-assets data when a supported asset arrives | LSP5 Received Assets |
+| Auto-forward tokens to a vault | On receipt, transfer or route the asset into a vault account | LSP1 delegate + LSP9 Vault |
+| Run app automation after receipt | Decode `data` and type ID, then trigger narrow product logic | LSP1 Universal Receiver |
+
+## What to implement
+
+1. Decide which assets and type IDs the smart account should accept.
+2. Deploy or configure a Universal Receiver Delegate.
+3. Store the delegate address on the Universal Profile or Vault.
+4. Keep the delegate's actions narrow: accept/reject, register, forward, or emit product-specific events.
+5. Use LSP6 permissions so only trusted controllers can change receiver delegates or asset policies.
+
+## Policy example
+
+```solidity
+function universalReceiver(
+  bytes32 typeId,
+  bytes calldata receivedData
+) external returns (bytes memory) {
+  if (!_isAllowedTypeId(typeId)) revert UnsupportedAssetNotification(typeId);
+
+  (address asset, address from, bytes memory data) = _decode(receivedData);
+
+  if (!_isAllowedAsset(asset) || _isBlockedSender(from)) {
+    revert AssetRejected(asset, from);
+  }
+
+  _registerReceivedAsset(asset);
+
+  if (_shouldForward(asset, data)) {
+    _forwardToVault(asset, data);
+  }
+
+  return '';
+}
+```
+
+Keep the hook deterministic. Expensive discovery, analytics, and support workflows should still happen offchain from emitted events; the hook should enforce the minimum policy needed for the receiving account.
+
+## Production checklist
+
+- Treat receiver hooks as external-call surfaces and review reentrancy assumptions.
+- Do not make a receiver delegate depend on a slow or unavailable offchain service.
+- Keep spam filtering rules explainable to users.
+- Separate critical custody from app-specific automation by forwarding assets into a Vault.
+- Emit events for support tooling even when LSP5/LSP10 storage is updated.
+- Test both `force = false` and `force = true` transfer paths for LSP7 and LSP8 assets.
+
+## Related guides
+
+- [How to add ERC20 transfer hooks on EVM](../erc20-transfer-hooks.mdx)
+- [How to discover tokens owned or issued by an EVM account](../token-discovery-owned-issued-assets.mdx)
+- [Asset isolation for smart accounts with Vaults](../smart-account-vaults-asset-isolation.mdx)
+
+## Implementation docs
+
+- [Create a token forwarder](../../learn/universal-profile/universal-receiver/create-receiver-forwarder.md)
+- [Deploy a Universal Receiver delegate](../../learn/universal-profile/universal-receiver/deploy-universal-receiver.md)
+- [Accept or reject assets](../../learn/universal-profile/universal-receiver/accept-reject-assets.md)
+- [LSP1 Universal Receiver standard](../../standards/accounts/lsp1-universal-receiver.md)
+- [LSP1 Universal Receiver Delegate standard](../../standards/accounts/lsp1-universal-receiver-delegate.md)
+- [LSP9 Vault standard](../../standards/accounts/lsp9-vault.md)
