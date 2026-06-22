@@ -147,12 +147,6 @@ export default {
         },
         {
           type: 'doc',
-          docId: 'evm/overview',
-          position: 'left',
-          label: 'EVM Builders',
-        },
-        {
-          type: 'doc',
           docId: 'networks/mainnet/parameters',
           position: 'left',
           label: 'Networks',
