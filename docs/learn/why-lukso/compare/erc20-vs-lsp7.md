@@ -18,7 +18,7 @@ ERC20 is Ethereum's minimum fungible-token interface: six functions, two events,
 | Transfer context payload       | ❌ none — bolted on via wrapper contracts | ✅ native `bytes data` on every transfer                                                                                                                   |
 | Authorization                  | `approve` / `allowance` / `transferFrom`  | `authorizeOperator` — scoped, revocable, and notifies the operator                                                                                         |
 | Metadata                       | `name()` / `symbol()` / `decimals()` only | ✅ unlimited [ERC725Y](../../../standards/erc725.md) key-value storage under [LSP4](../../../standards/tokens/LSP4-Digital-Asset-Metadata.md)              |
-| Accidental-transfer protection | ❌ none                                   | ✅ `force` flag rejects transfers to non-receiving contracts by default                                                                                    |
+| Accidental-transfer protection | ❌ none                                   | ✅ required `force` flag — callers must explicitly pass `force=false` to reject transfers to non-receiving contracts                                       |
 | Batch operations               | ❌ none natively                          | ✅ `transferBatch(...)`                                                                                                                                    |
 
 ## Why the LSP1 hook matters more than it looks

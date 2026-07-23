@@ -12,7 +12,7 @@ ERC1155 packs fungible, semi-fungible, and non-fungible token types into a singl
 
 | Feature               | ERC1155                                              | LSP7 + LSP8                                                                                                                         |
 | --------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| Contracts per product | one                                                  | one per asset shape (typically two)                                                                                                 |
+| Contracts per product | one                                                  | one LSP7 contract per distinct fungible asset, plus one LSP8 collection for all identifiable items — not a fixed number             |
 | Fungibility signal    | convention encoded in token-id bits                  | declared by the standard itself (LSP7 vs LSP8)                                                                                      |
 | Transfer hook         | `IERC1155Receiver` (single + batch variants)         | one [LSP1](../../../standards/accounts/lsp1-universal-receiver.md) `universalReceiver` shape for both                               |
 | Metadata              | `uri(id) → string`                                   | [ERC725Y](../../../standards/erc725.md) + [LSP4](../../../standards/tokens/LSP4-Digital-Asset-Metadata.md) keys, per-token via LSP8 |
@@ -30,7 +30,7 @@ LSP7 and LSP8 put that boundary where it belongs: in the standard. If it's fungi
 `IERC1155Receiver` requires implementing both a single-transfer and a batch-transfer callback, on top of whatever `IERC721Receiver` shape a mixed integration also needs to support. LSP7 and LSP8 both dispatch through the same [LSP1 `universalReceiver`](../../../standards/accounts/lsp1-universal-receiver.md) hook, branching on a `typeId` — one interface to implement, one code path to audit, regardless of which LUKSO asset is arriving.
 
 :::info The honest tradeoff
-Where ERC1155 ships one contract for a multi-asset product, LSP7 + LSP8 usually ships two. That's a one-time deployment cost. For a game with a handful of stable item categories, the integration savings from clean type separation pay that back immediately. For a single collection of thousands of loosely related items, ERC1155's one-contract model can still be the pragmatic choice.
+Where ERC1155 ships one contract for a multi-asset product, LSP7 + LSP8 ships one contract per distinct fungible asset plus one LSP8 collection — two contracts for a product with a single fungible currency and a single NFT collection, more if there are several distinct fungible assets to keep separate. That's a real, scaling deployment cost, not a flat one-time fee. For a game with a handful of stable item categories, the integration savings from clean type separation pay that back immediately. For a single collection of thousands of loosely related items, ERC1155's one-contract model can still be the pragmatic choice.
 :::
 
 **Related reading:** [ERC1155's complexity problem](../problems/erc1155-complexity.md) · [ERC20 vs LSP7](./erc20-vs-lsp7.md) · [ERC721 vs LSP8](./erc721-vs-lsp8.md) · [Migrate ERC1155 to LSP7 + LSP8](../../migrate/migrate-erc1155-to-lsp7-lsp8.md)

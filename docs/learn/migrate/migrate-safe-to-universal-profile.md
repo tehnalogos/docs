@@ -20,7 +20,7 @@ Migrate when per-controller permission scoping in a standard vocabulary — the 
 
 Safe's "3 of 5" threshold doesn't exist directly in LSP6 — controllers are individual, not aggregated by a vote. Two patterns work:
 
-- **Recovery contract** — deploy a contract that enforces the threshold itself, and register that contract as the controller holding `EDITPERMISSIONS` on the profile. Day-to-day controllers handle daily operations; the recovery contract handles ownership-level changes.
+- **Recovery contract** — deploy a contract that enforces the threshold itself, and register that contract as a controller holding both `ADDCONTROLLER` and `EDITPERMISSIONS` on the profile. Both are required: `ADDCONTROLLER` lets it install a brand-new replacement controller (the one that's never held permissions before — the whole point of recovery), while `EDITPERMISSIONS` alone only lets it edit or remove a controller that already has some permission entry. Day-to-day controllers handle daily operations; the recovery contract handles ownership-level changes.
 - **Single day-to-day controller + cold multisig** — flatten daily operations to one controller, and keep the Safe (or a new threshold contract) as the cold recovery layer behind it.
 
 ## Step 2 — deploy the Universal Profile
@@ -47,7 +47,7 @@ Once nothing material remains in the Safe, sweep out any remaining gas dust and 
 
 ## Gotchas
 
-- Multisig threshold semantics don't map one-to-one to LSP6 — model it as a recovery-controller contract that enforces the threshold, then register that contract as an LSP6 controller with `EDITPERMISSIONS`.
+- Multisig threshold semantics don't map one-to-one to LSP6 — model it as a recovery-controller contract that enforces the threshold, then register that contract as an LSP6 controller with both `ADDCONTROLLER` and `EDITPERMISSIONS` (installing a never-before-permissioned replacement controller needs `ADDCONTROLLER`; `EDITPERMISSIONS` alone isn't enough).
 - Asset transfer is many separate transactions unless the Safe owns assets through a sweep contract that batches outbound moves.
 - Anything connected to the Safe's address — vesting schedules, allowance grants, on-chain memberships — needs to be re-pointed to the new profile address; addresses don't migrate, only the references you update do.
 - Safe modules have their own permission shape; LSP6 controllers plus [LSP17](../../standards/accounts/lsp17-contract-extension.md) extensions are the closest LSP-side equivalents. Map each module to its closest LSP primitive deliberately rather than assuming a 1:1 translation.
@@ -57,7 +57,7 @@ Once nothing material remains in the Safe, sweep out any remaining gas dust and 
 - All assets transferred to the Universal Profile.
 - Old Safe emptied of material assets — Safe has no built-in pause function, so "sunset" means the Safe holds nothing worth protecting anymore, not that it's disabled on-chain.
 - Controllers and permissions configured on the new profile.
-- Recovery policy in place, with at least one cold controller holding `EDITPERMISSIONS`.
+- Recovery policy in place, with at least one cold controller holding both `ADDCONTROLLER` and `EDITPERMISSIONS`.
 - Off-chain integrations updated to the new address.
 
 **Related reading:** [EOA vs Universal Profile](../why-lukso/compare/eoa-vs-universal-profile.md) · [Wallet permission scoping](../why-lukso/problems/wallet-permissions.md)

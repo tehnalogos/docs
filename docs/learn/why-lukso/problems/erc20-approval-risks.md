@@ -15,7 +15,7 @@ ERC-20's `approve(spender, amount)` asks a token contract to trust a spender ind
 | Grant call                               | `approve(spender, amount)`                            | `authorizeOperator(operator, amount, data)`                                                                                                                |
 | Common default                           | dApps request max-uint to skip re-prompting           | still amount-scoped by convention — not fixed by LSP7 alone                                                                                                |
 | Who can grant new approvals              | anyone holding the private key, forever               | only a controller whose LSP6 permissions allow calling `authorizeOperator` — revocable at the account level                                                |
-| Revoking an existing allowance           | separate `approve(spender, 0)` transaction, per token | separate `revokeOperator(operator, tokenOwner)` transaction, per token — same shape as ERC-20, LSP7 doesn't change this                                    |
+| Revoking an existing allowance           | separate `approve(spender, 0)` transaction, per token | separate `revokeOperator(operator, tokenOwner, false, "0x")` transaction, per token — same shape as ERC-20, LSP7 doesn't change this                       |
 | Stopping a controller from granting more | not applicable — ERC-20 has no controller layer       | revoke the controller's LSP6 permission — one transaction, account-wide, but any operator allowance it already granted stays live until separately revoked |
 
 ## Why approve/transferFrom splits intent from execution

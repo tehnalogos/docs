@@ -15,7 +15,7 @@ ERC-20's `transfer` is two storage writes and an event — the recipient contrac
 | Transfer signature                                       | `transfer(to, amount)`                              | `transfer(from, to, amount, force, data)`                                       |
 | Recipient notified                                       | no                                                  | yes, if the recipient is a contract implementing LSP1 — via `universalReceiver` |
 | Context payload                                          | none                                                | native `bytes data` on every transfer                                           |
-| Send to a non-receiving contract                         | tokens strand silently                              | `force` flag rejects the transfer by default                                    |
+| Send to a non-receiving contract                         | tokens strand silently                              | required `force` flag — caller passes `force=false` to reject the transfer      |
 | Receiver interfaces to implement for "accept everything" | one per asset standard (ERC-721, ERC-1155, ERC-777) | one — LSP1, shared across LSP7, LSP8, and value transfers                       |
 
 ## Why silence at the recipient is the root problem

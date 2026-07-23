@@ -40,10 +40,10 @@ Coinbase or Polygon hosts the paymaster and bundler; the app just configures a s
 
 ### EIP-7702 set-code delegation
 
-An EOA delegates to a smart-account implementation for the duration of a transaction, pairing with a paymaster for gasless flows.
+An EOA delegates to a smart-account implementation — the delegation persists until replaced or explicitly cleared, not just for the transaction that set it — and a plain transaction sender can already cover gas for the delegated EOA without a paymaster or bundler in the loop.
 
 - **Pros:** backwards-compatible with existing EOAs, standardized at the protocol level.
-- **Cons:** still requires a paymaster-and-bundler combo for full gasless UX; the EOA's root key remains overridable.
+- **Cons:** matching ERC-4337's exact sponsorship UX still means pairing 7702 with paymaster-and-bundler infrastructure; the EOA's root key remains overridable.
 - **Chains:** Ethereum L1, most EVM L2s.
 
 ### Solana native fee delegation
