@@ -10,14 +10,14 @@ ERC-1155 packs fungible tokens, semi-fungible editions, and one-of-one items int
 
 ## ERC-1155 vs. the LSP7 / LSP8 split
 
-| Aspect               | ERC-1155                                                    | LSP7 + LSP8                                                                                                                                 |
-| -------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Where semantics live | encoded in `tokenId` bits, per-collection convention        | in the contract's standard interface itself                                                                                                 |
-| Balance query        | `balanceOf(account, id)`                                    | LSP7 `balanceOf(account)`; LSP8 `tokenOwnerOf(tokenId)`                                                                                     |
-| Receiver hook        | `IERC1155Receiver` + `IERC1155BatchReceiver`                | one LSP1 `universalReceiver`, `typeId`-discriminated                                                                                        |
-| Metadata             | `uri(id)` with `{id}` substitution clients resolve manually | [LSP4](../../../standards/tokens/LSP4-Digital-Asset-Metadata.md) typed [ERC725Y](../../../standards/erc725.md) keys, per-asset or per-token |
-| Batch operations     | native batch transfer                                       | `transferBatch` on LSP7/LSP8, same hook path                                                                                                |
-| Integrator cost      | decode the type-bit convention per contract                 | read the standard interface — no decoding required                                                                                          |
+| Aspect               | ERC-1155                                                     | LSP7 + LSP8                                                                                                                                 |
+| -------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Where semantics live | encoded in `tokenId` bits, per-collection convention         | in the contract's standard interface itself                                                                                                 |
+| Balance query        | `balanceOf(account, id)`                                     | LSP7 `balanceOf(account)`; LSP8 `tokenOwnerOf(tokenId)`                                                                                     |
+| Receiver hook        | `IERC1155Receiver` (one interface, single + batch callbacks) | one LSP1 `universalReceiver`, `typeId`-discriminated                                                                                        |
+| Metadata             | `uri(id)` with `{id}` substitution clients resolve manually  | [LSP4](../../../standards/tokens/LSP4-Digital-Asset-Metadata.md) typed [ERC725Y](../../../standards/erc725.md) keys, per-asset or per-token |
+| Batch operations     | native batch transfer                                        | `transferBatch` on LSP7/LSP8, same hook path                                                                                                |
+| Integrator cost      | decode the type-bit convention per contract                  | read the standard interface — no decoding required                                                                                          |
 
 ## Why packing everything into one contract breaks down
 

@@ -18,15 +18,21 @@ Migrate when downstream code needs to dispatch on asset shape — fungible vs. i
 
 ## Step 1 — classify every token ID
 
-For each token ID (or ID range) in the existing ERC1155 contract, decide: is it **fungible** (interchangeable units, summable) or **identifiable** (each unit unique)? Fungible → LSP7. Identifiable → LSP8. A semi-fungible edition (e.g. 100 prints of the same piece) can work as LSP7 with `decimals` set to `0`.
+For each token ID (or ID range) in the existing ERC1155 contract, decide: is it **fungible** (interchangeable units, summable) or **identifiable** (each unit unique)? Fungible → LSP7. Identifiable → LSP8.
 
-## Step 2 — deploy the two contracts
+:::warning Each distinct fungible ID normally needs its own LSP7 contract
+LSP7 has one `balanceOf(address)` per contract — there's no token-ID dimension to a balance. If ID 1 (5 units) and ID 2 (7 units) were two _different_ fungible assets in the ERC1155 contract, minting both into the same LSP7 contract collapses them into one indistinguishable balance of 12. Give each distinct fungible asset its own LSP7 deployment unless merging them into a single balance is actually what you want. A semi-fungible edition (e.g. 100 prints of the same piece, one ID) is the case where a single LSP7 contract with `decimals` set to `0` is correct — it was one fungible asset to begin with.
+:::
 
-One LSP7 contract for the fungible inventory, one LSP8 contract for the identifiable inventory. [LSP4](../../standards/tokens/LSP4-Digital-Asset-Metadata.md) metadata lives independently on each.
+Some ERC1155 collections signal fungible-vs-unique by convention in the high bits of the token ID — that's one pattern some contracts use, not a property ERC1155 itself defines. Don't assume it applies to a given contract without checking its actual minting logic.
+
+## Step 2 — deploy the contracts
+
+One LSP7 contract per distinct fungible asset in the old collection, one LSP8 contract for the identifiable inventory (a single LSP8 contract can hold many unique token IDs, since LSP8 balances are already per-ID). [LSP4](../../standards/tokens/LSP4-Digital-Asset-Metadata.md) metadata lives independently on each.
 
 ## Step 3 — port the holders
 
-Snapshot ERC1155 balances. For LSP7 IDs, mint the equivalent amounts. For LSP8 IDs, mint `bytes32`-encoded token IDs. This is typically two coordinated mint scripts, sometimes merkle-claimed for large holder sets.
+Snapshot ERC1155 balances per token ID. For each fungible ID, mint the equivalent amount into that ID's dedicated LSP7 contract — don't combine amounts from different fungible IDs into one contract's balance. For LSP8 IDs, mint `bytes32`-encoded token IDs into the LSP8 contract. This is typically one coordinated mint script per new contract, sometimes merkle-claimed for large holder sets.
 
 ## Step 4 — port the integrations
 
@@ -38,15 +44,15 @@ Once the new contracts are live and every integration has migrated, pause the ER
 
 ## Gotchas
 
-- Two contracts instead of one — deployment cost doubles, and so does the indexing surface.
-- Batch transfers are now per-standard, not cross-standard — a batch can't mix LSP7 and LSP8 items in one call.
-- Holders with mixed ERC1155 IDs need a coordinated mint across both new contracts.
+- Multiple contracts instead of one — one LSP7 deployment per distinct fungible asset, plus one LSP8 deployment for the identifiable inventory. Deployment cost and indexing surface scale with how many distinct fungible IDs the old contract actually held.
+- Batch transfers are now per-standard and per-contract, not cross-standard — a batch can't mix LSP7 and LSP8 items, or items from two different LSP7 contracts, in one call.
+- Holders with mixed ERC1155 IDs need a coordinated mint across every new contract that inherits part of their balance.
 - Marketplaces that supported your ERC1155 contract won't automatically pick up the new LSP7 + LSP8 contracts — plan for marketplace re-listing.
 
 ## Verify the migration
 
-- Every ERC1155 token ID is mapped to either an LSP7 amount or an LSP8 token ID.
-- Holder balances are reproduced identically across both new contracts.
+- Every ERC1155 token ID is mapped to either an LSP7 amount (in that asset's own contract) or an LSP8 token ID — no two distinct fungible assets share one LSP7 balance.
+- Holder balances are reproduced identically across every new contract.
 - Batch transfer behavior is tested per standard.
 - LSP1 receivers correctly handle both LSP7 and LSP8 `typeId`s.
 

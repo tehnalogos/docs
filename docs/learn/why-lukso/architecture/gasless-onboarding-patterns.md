@@ -6,11 +6,11 @@ description: "How consumer apps sponsor user transactions: meta-transactions, pa
 
 # Gasless Onboarding Patterns
 
-"Gasless" is a UX claim, not a technical one — somebody always pays the gas. The architectural question is _who_, _with what scope_, _through what infrastructure_, and _what does the user have to trust_. Five patterns answer those questions today: meta-transactions via ERC-2771, paymasters via ERC-4337, vendor-hosted paymasters, set-code delegation via EIP-7702, native fee delegation on Solana, and relayed execution via [LSP25](../../../standards/accounts/lsp25-execute-relay-call.md) on LUKSO. They differ in operational burden — do you run bundler infrastructure? — in revocability, and in whether the relay logic lives in your SDK, in a separate protocol, or in the account itself. For apps that want to sponsor every interaction without standing up bundler infrastructure, LSP25 is the lowest-burden option among EVM chains, because the scope of what gets relayed is enforced by [LSP6](../../../standards/access-control/lsp6-key-manager.md) on the same account rather than by a separate paymaster contract.
+"Gasless" is a UX claim, not a technical one — somebody always pays the gas. The architectural question is _who_, _with what scope_, _through what infrastructure_, and _what does the user have to trust_. Five patterns answer those questions today: meta-transactions via ERC-2771, paymasters via ERC-4337, vendor-hosted paymasters, set-code delegation via EIP-7702, native fee delegation on Solana, and relayed execution via [LSP25](../../../standards/accounts/lsp25-execute-relay-call.md) on LUKSO. They differ in operational burden — do you run bundler infrastructure? — in revocability, and in whether the relay logic lives in your SDK, in a separate protocol, or in infrastructure the account already has. For apps that want to sponsor every interaction without standing up bundler infrastructure, LSP25 is the lowest-burden option among EVM chains, because the scope of what gets relayed is enforced by [LSP6](../../../standards/access-control/lsp6-key-manager.md) on the Key Manager that already governs the account, rather than by a separate paymaster contract.
 
 ## The bundler question
 
-The single biggest operational fork in this decision is whether the app ends up running bundler infrastructure. ERC-4337 makes the bundler a permanent part of the stack. Vendor-hosted paymasters externalize it to Coinbase or Polygon. EIP-7702 still depends on a paymaster-and-bundler combo for full gasless UX. Solana avoids it entirely via a native fee-payer field. LUKSO avoids it too, but differently: relayed execution is part of the account standard itself, so the "relayer" is a simple submit-call service rather than a new category of protocol infrastructure to operate or rent.
+The single biggest operational fork in this decision is whether the app ends up running bundler infrastructure. ERC-4337 makes the bundler a permanent part of the stack. Vendor-hosted paymasters externalize it to Coinbase or Polygon. EIP-7702 delegation can be paired with a paymaster for full gasless UX, but a plain transaction sender can already cover gas for a delegated EOA without a paymaster or bundler in the loop. Solana avoids the bundler question entirely via a native fee-payer field. LUKSO avoids it too, but differently: relayed execution is a function on the [LSP6 Key Manager](../../../standards/access-control/lsp6-key-manager.md) that already governs every Universal Profile, so the "relayer" is a simple submit-call service rather than a new category of protocol infrastructure to operate or rent.
 
 ## Implementation approaches
 
@@ -56,10 +56,10 @@ Solana transactions carry a separate fee-payer field, so any signer can cover th
 
 ### LSP25 Execute Relay Call (LUKSO)
 
-LSP25 standardizes how a relayer submits a signed call to an [LSP0](../../../standards/accounts/lsp0-erc725account.md) account. The relayer pays gas; the scope of what the relayed call is allowed to do is enforced by LSP6 on the same account.
+LSP25 standardizes how a relayer submits a signed call to the [LSP6 Key Manager](../../../standards/access-control/lsp6-key-manager.md) that governs an [LSP0](../../../standards/accounts/lsp0-erc725account.md) account. The relayer pays gas; the Key Manager verifies the signature and confirms the signer holds `EXECUTE_RELAY_CALL` plus whatever permission the payload itself needs, then executes on the account.
 
-- **Pros:** no bundler or EntryPoint infrastructure to run; per-controller scope enforced by LSP6 on the account itself; standardized at the chain level, so every LSP25-aware relayer behaves the same way.
-- **Cons:** requires LSP25-aware relayer infrastructure; specific to LSP0 accounts.
+- **Pros:** no bundler or EntryPoint infrastructure to run; per-controller scope enforced by LSP6 on the same Key Manager that already governs the account; standardized at the chain level, so every LSP25-aware relayer behaves the same way.
+- **Cons:** requires LSP25-aware relayer infrastructure; specific to LSP0 accounts with a Key Manager attached.
 - **Chains:** LUKSO.
 
 :::tip When to reach for LSP25

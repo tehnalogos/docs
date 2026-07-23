@@ -58,13 +58,13 @@ Permit (EIP-2612), Permit2, ERC-1363, ERC-777, ERC-3009, ERC-4626 — each adds 
 
 [**LSP7 Digital Asset**](../../../standards/tokens/LSP7-Digital-Asset.md) keeps ERC20's balance model exactly, and builds the surrounding system directly into the standard instead of leaving it as a patch layer.
 
-|                        | ERC20                                    | LSP7                                                                                                                |
-| ---------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Transfer signature     | `transfer(to, amount)`                   | `transfer(from, to, amount, force, data)`                                                                           |
-| Recipient notification | none                                     | [LSP1](../../../standards/accounts/lsp1-universal-receiver.md) `universalReceiver` on both sides                    |
-| Authorization          | `approve` / `allowance` / `transferFrom` | `authorizeOperator` + [LSP6](../../../standards/access-control/lsp6-key-manager.md) controller scope                |
-| Metadata               | `name` / `symbol` / `decimals` only      | [ERC725Y](../../../standards/erc725.md) under [LSP4](../../../standards/tokens/LSP4-Digital-Asset-Metadata.md) keys |
-| Transfer data payload  | none — workaround via wrappers           | native `bytes data`                                                                                                 |
+|                        | ERC20                                    | LSP7                                                                                                                                |
+| ---------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Transfer signature     | `transfer(to, amount)`                   | `transfer(from, to, amount, force, data)`                                                                                           |
+| Recipient notification | none                                     | [LSP1](../../../standards/accounts/lsp1-universal-receiver.md) `universalReceiver` on either side that's a contract implementing it |
+| Authorization          | `approve` / `allowance` / `transferFrom` | `authorizeOperator` + [LSP6](../../../standards/access-control/lsp6-key-manager.md) controller scope                                |
+| Metadata               | `name` / `symbol` / `decimals` only      | [ERC725Y](../../../standards/erc725.md) under [LSP4](../../../standards/tokens/LSP4-Digital-Asset-Metadata.md) keys                 |
+| Transfer data payload  | none — workaround via wrappers           | native `bytes data`                                                                                                                 |
 
 Behind LSP7 sits the rest of the LUKSO account stack: [LSP0](../../../standards/accounts/lsp0-erc725account.md) makes the account a programmable contract instead of a bare address, [LSP3](../../../standards/metadata/lsp3-profile-metadata.md) gives it a profile, [LSP6](../../../standards/access-control/lsp6-key-manager.md) makes permissions an account property instead of a token allowance, and [LSP25](../../../standards/accounts/lsp25-execute-relay-call.md) makes gasless onboarding a native function rather than a bolted-on mempool. Where ERC20 pushed every one of these concerns to the application layer, LUKSO designed them into the account and token system from the start.
 
@@ -84,7 +84,7 @@ Five well-known limits: split-intent approvals that enable phishing, no receiver
 
 ### What is LSP7?
 
-LSP7 is LUKSO's Digital Asset standard, designed by Fabian Vogelsteller — ERC20's original author — as the fungible token standard for Universal Profiles. It keeps the balance model and adds a `force` flag, a `data` payload on every transfer, [LSP1](../../../standards/accounts/lsp1-universal-receiver.md) notifications on both sides, and account-scoped operator authorization via [LSP6](../../../standards/access-control/lsp6-key-manager.md).
+LSP7 is LUKSO's Digital Asset standard, designed by Fabian Vogelsteller — ERC20's original author — as the fungible token standard for Universal Profiles. It keeps the balance model and adds a required `force` flag, a `data` payload on every transfer, [LSP1](../../../standards/accounts/lsp1-universal-receiver.md) notifications on whichever side is a contract implementing it, and account-scoped operator authorization via [LSP6](../../../standards/access-control/lsp6-key-manager.md).
 
 ### Can I migrate an ERC20 token to LSP7?
 

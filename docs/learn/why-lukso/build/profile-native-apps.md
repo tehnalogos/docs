@@ -6,7 +6,7 @@ description: 'Build apps on LUKSO where identity is the account, inventory is on
 
 # Build Profile-Native Apps on LUKSO
 
-A profile-native app reads the account, not its own database. Name, avatar, owned assets, created assets, and followers all live directly on the [Universal Profile](../compare/eoa-vs-universal-profile.md) under standardized keys — [**LSP3**](../../../standards/metadata/lsp3-profile-metadata.md), [**LSP5**](../../../standards/metadata/lsp5-received-assets.md), [**LSP12**](../../../standards/metadata/lsp12-issued-assets.md), and [**LSP26**](../../../standards/accounts/lsp26-follower-system.md) — so your app composes existing primitives instead of mirroring them into a separate login system.
+A profile-native app reads the account, not its own database. Name, avatar, owned assets, and created assets live directly on the [Universal Profile](../compare/eoa-vs-universal-profile.md) under standardized [**LSP3**](../../../standards/metadata/lsp3-profile-metadata.md), [**LSP5**](../../../standards/metadata/lsp5-received-assets.md), and [**LSP12**](../../../standards/metadata/lsp12-issued-assets.md) keys; followers are indexed by [**LSP26**](../../../standards/accounts/lsp26-follower-system.md), a separate chain-level registry contract keyed by address rather than data stored on the profile itself. Either way, your app composes existing primitives instead of mirroring them into a separate login system.
 
 ## The stack
 

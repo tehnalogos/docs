@@ -10,14 +10,14 @@ ERC-4337 bolts account abstraction onto Ethereum without protocol changes: a par
 
 ## Structural comparison
 
-| Feature                     | ERC-4337                                                | LSP account stack                                                                                                  |
-| --------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Transaction flow            | user → UserOp pool → bundler → EntryPoint → account     | user (controller) → account contract, directly                                                                     |
-| Permission layer            | validator module — different per account implementation | [LSP6 Key Manager](../../../standards/access-control/lsp6-key-manager.md) — one standardized vocabulary everywhere |
-| Gas sponsorship             | separate paymaster contract                             | [LSP25](../../../standards/accounts/lsp25-execute-relay-call.md) `executeRelayCall`, on the account itself         |
-| Signature verification      | `validateUserOp` on the account                         | [LSP20](../../../standards/accounts/lsp20-call-verification.md) `lsp20VerifyCall`, inline                          |
-| Explorer / trace experience | extra hops: `handleOps` → `EntryPoint` → account        | a direct call into the account contract                                                                            |
-| Permission vocabulary       | non-standard — every validator module defines its own   | uniform LSP6 permission bitfield + allowed calls + allowed data keys                                               |
+| Feature                     | ERC-4337                                                | LSP account stack                                                                                                               |
+| --------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Transaction flow            | user → UserOp pool → bundler → EntryPoint → account     | user (controller) → account contract, directly                                                                                  |
+| Permission layer            | validator module — different per account implementation | [LSP6 Key Manager](../../../standards/access-control/lsp6-key-manager.md) — one standardized vocabulary everywhere              |
+| Gas sponsorship             | separate paymaster contract                             | [LSP25](../../../standards/accounts/lsp25-execute-relay-call.md) `executeRelayCall`, on the Key Manager the account already has |
+| Signature verification      | `validateUserOp` on the account                         | [LSP20](../../../standards/accounts/lsp20-call-verification.md) `lsp20VerifyCall`, inline                                       |
+| Explorer / trace experience | extra hops: `handleOps` → `EntryPoint` → account        | a direct call into the account contract                                                                                         |
+| Permission vocabulary       | non-standard — every validator module defines its own   | uniform LSP6 permission bitfield + allowed calls + allowed data keys                                                            |
 
 ## No bundler, no EntryPoint, no extra hop
 
@@ -29,7 +29,7 @@ ERC-4337's permission model lives in whatever validator module a given smart-acc
 
 ## Sponsored execution without a paymaster contract
 
-ERC-4337 sponsors gas through a separate paymaster contract that the EntryPoint calls out to. On LUKSO, sponsored execution is a function on the account itself — [`executeRelayCall`](../../../standards/accounts/lsp25-execute-relay-call.md) via LSP25 — with nonce channels that support parallel signed-payload streams, no separate sponsorship contract to deploy or trust.
+ERC-4337 sponsors gas through a separate paymaster contract that the EntryPoint calls out to. On LUKSO, sponsored execution is a function on the [Key Manager](../../../standards/access-control/lsp6-key-manager.md) that every Universal Profile already has — [`executeRelayCall`](../../../standards/accounts/lsp25-execute-relay-call.md) via LSP25 — with nonce channels that support parallel signed-payload streams, no separate sponsorship contract to deploy or trust.
 
 :::tip When the LSP stack wins
 Any product where the account contract itself should be the call entry point — clean traces, one standardized permission vocabulary, sponsored execution without extra infrastructure — is better served by the native LSP stack than by layering ERC-4337 on top of an EOA-anchored chain.

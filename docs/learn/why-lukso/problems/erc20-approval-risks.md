@@ -6,17 +6,17 @@ description: 'ERC-20 approve grants standing, often unlimited, allowances. LSP7 
 
 # Stop Granting Standing Allowances to Token Contracts
 
-ERC-20's `approve(spender, amount)` asks a token contract to trust a spender indefinitely — most dApps request max-uint to avoid a second prompt, and that allowance sits live on-chain until someone manually revokes it. LSP7's `authorizeOperator` is still amount-scoped, exactly like `approve` — LUKSO isn't pretending otherwise. What changes is _where the policy lives_: on a [Universal Profile](../../universal-profile/metadata/read-profile-data.md), the controller calling `authorizeOperator` is itself bound by [LSP6 Key Manager](../../../standards/access-control/lsp6-key-manager.md) permissions, so enforcement moves from a forever-promise buried in the token contract to a revocable grant on the account itself.
+ERC-20's `approve(spender, amount)` asks a token contract to trust a spender indefinitely — most dApps request max-uint to avoid a second prompt, and that allowance sits live on-chain until someone manually revokes it. LSP7's `authorizeOperator` is still amount-scoped, exactly like `approve`, and revoking an operator allowance once it's been granted still takes the same `revokeOperator` call ERC-20 requires — LUKSO isn't pretending otherwise. What changes is _who gets to create that allowance in the first place_: on a [Universal Profile](../../universal-profile/metadata/read-profile-data.md), the controller calling `authorizeOperator` is itself bound by [LSP6 Key Manager](../../../standards/access-control/lsp6-key-manager.md) permissions, so a compromised or over-trusted app controller can be cut off from granting _new_ allowances in one transaction — a layer of defense ERC-20 has no equivalent for, even though it doesn't reach back and undo an allowance that controller already created.
 
 ## Before / after
 
-| Mechanism            | ERC-20                                                | LSP7 + LSP6                                                             |
-| -------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------- |
-| Grant call           | `approve(spender, amount)`                            | `authorizeOperator(operator, amount, data)`                             |
-| Common default       | dApps request max-uint to skip re-prompting           | still amount-scoped by convention — not fixed by LSP7 alone             |
-| Who enforces scope   | the token contract, forever, until revoked            | the account, via LSP6 permissions on the granting controller            |
-| Revocation           | separate `approve(spender, 0)` transaction, per token | revoke the controller's LSP6 permission — one transaction, account-wide |
-| Session-style access | not supported natively                                | grant a scoped session controller, then revoke it when the session ends |
+| Mechanism                                | ERC-20                                                | LSP7 + LSP6                                                                                                                                                |
+| ---------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Grant call                               | `approve(spender, amount)`                            | `authorizeOperator(operator, amount, data)`                                                                                                                |
+| Common default                           | dApps request max-uint to skip re-prompting           | still amount-scoped by convention — not fixed by LSP7 alone                                                                                                |
+| Who can grant new approvals              | anyone holding the private key, forever               | only a controller whose LSP6 permissions allow calling `authorizeOperator` — revocable at the account level                                                |
+| Revoking an existing allowance           | separate `approve(spender, 0)` transaction, per token | separate `revokeOperator(operator, tokenOwner)` transaction, per token — same shape as ERC-20, LSP7 doesn't change this                                    |
+| Stopping a controller from granting more | not applicable — ERC-20 has no controller layer       | revoke the controller's LSP6 permission — one transaction, account-wide, but any operator allowance it already granted stays live until separately revoked |
 
 ## Why approve/transferFrom splits intent from execution
 
@@ -31,7 +31,7 @@ ERC-20's `approve(spender, amount)` asks a token contract to trust a spender ind
 LSP7's `authorizeOperator` doesn't magically fix amount-scoped allowances — that part of the risk is unchanged. What's different is that on a Universal Profile, the controller invoking `authorizeOperator` is itself governed by LSP6: allowed calls, allowed standards, allowed [ERC725Y](../../../standards/erc725.md) data keys, value limits, all revocable per controller. Instead of asking the token contract to police every future `transferFrom` forever, the account decides what each app controller may invoke, and can cut that controller off in a single transaction — without ever touching a token-level allowance.
 
 :::tip Honest framing, real change
-LSP7 operators are still amount-scoped — that isn't a magic fix, and LUKSO doesn't claim otherwise. The meaningful shift is that enforcement moves to the account: a session controller can be granted and revoked in one transaction each, on-chain, instead of trusting a token contract's allowance forever.
+LSP7 operators are still amount-scoped, and an allowance already granted still needs its own `revokeOperator` call — that isn't a magic fix, and LUKSO doesn't claim otherwise. The real shift is one layer up: a session controller's _ability to grant new allowances_ can be switched off in one LSP6 transaction, account-wide — a kill switch ERC-20 simply has no equivalent for, on top of (not instead of) revoking the allowance itself.
 :::
 
 **Related reading:** [Wallet permission scoping](./wallet-permissions.md) · [ERC-20's missing transfer hooks](./erc20-transfer-hooks.md) · [ERC-20 explained](../erc-explainers/erc-20.md) · [ERC20 vs. LSP7](../compare/erc20-vs-lsp7.md)

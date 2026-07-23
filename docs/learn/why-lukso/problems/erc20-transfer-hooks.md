@@ -6,17 +6,17 @@ description: 'ERC-20 transfer() never calls the recipient, stranding tokens sent
 
 # Give Every Token Transfer a Receiver Hook
 
-ERC-20's `transfer` is two storage writes and an event — the recipient contract is never called, so it has no way to react when tokens arrive. That silence is the root cause of tokens getting stranded in contracts that can't credit a deposit without a second function call or an off-chain indexer watching for `Transfer` events. LSP7 closes the gap natively: every transfer carries an optional `bytes data` payload and fires [LSP1](../../../standards/accounts/lsp1-universal-receiver.md) `universalReceiver` on both the sender and the recipient. And because LSP1 is the same hook used by LSP8 and by native value transfers, a receiving contract implements it once instead of maintaining four separate receiver interfaces.
+ERC-20's `transfer` is two storage writes and an event — the recipient contract is never called, so it has no way to react when tokens arrive. That silence is the root cause of tokens getting stranded in contracts that can't credit a deposit without a second function call or an off-chain indexer watching for `Transfer` events. LSP7 closes the gap natively: every transfer carries a `bytes data` payload and fires [LSP1](../../../standards/accounts/lsp1-universal-receiver.md) `universalReceiver` on the sender and recipient, for whichever side is a contract implementing it. And because LSP1 is the same hook used by LSP8 and by native value transfers, a receiving contract implements it once instead of maintaining four separate receiver interfaces.
 
 ## Before / after
 
-| Behavior                                                 | ERC-20                                              | LSP7                                                      |
-| -------------------------------------------------------- | --------------------------------------------------- | --------------------------------------------------------- |
-| Transfer signature                                       | `transfer(to, amount)`                              | `transfer(from, to, amount, force, data)`                 |
-| Recipient notified                                       | no                                                  | yes — via LSP1 `universalReceiver`                        |
-| Context payload                                          | none                                                | native `bytes data` on every transfer                     |
-| Send to a non-receiving contract                         | tokens strand silently                              | `force` flag rejects the transfer by default              |
-| Receiver interfaces to implement for "accept everything" | one per asset standard (ERC-721, ERC-1155, ERC-777) | one — LSP1, shared across LSP7, LSP8, and value transfers |
+| Behavior                                                 | ERC-20                                              | LSP7                                                                            |
+| -------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Transfer signature                                       | `transfer(to, amount)`                              | `transfer(from, to, amount, force, data)`                                       |
+| Recipient notified                                       | no                                                  | yes, if the recipient is a contract implementing LSP1 — via `universalReceiver` |
+| Context payload                                          | none                                                | native `bytes data` on every transfer                                           |
+| Send to a non-receiving contract                         | tokens strand silently                              | `force` flag rejects the transfer by default                                    |
+| Receiver interfaces to implement for "accept everything" | one per asset standard (ERC-721, ERC-1155, ERC-777) | one — LSP1, shared across LSP7, LSP8, and value transfers                       |
 
 ## Why silence at the recipient is the root problem
 
@@ -28,7 +28,7 @@ A vault that needs to credit a user on deposit has exactly two options with ERC-
 
 ## How LSP1 and LSP7 fix it
 
-LSP7's `transfer` takes a `force` flag and a `bytes data` payload, and notifies both sender and recipient through LSP1 Universal Receiver. A recipient contract that implements LSP1 receives a `typeId` describing what just happened along with the transfer data, and can run accept, reject, or routing logic inside one standard hook — no polling, no second transaction. The structural win is that LSP1 is one interface across LSP7, LSP8, and native value transfers: a Universal Profile, or any LSP1-aware contract, handles every asset type through the same entry point, and the four-receiver-interfaces problem simply doesn't exist.
+LSP7's `transfer` takes a required `force` flag and a `bytes data` payload, and notifies whichever of sender and recipient are contracts implementing LSP1 Universal Receiver (an EOA has no code to call either way, so it's unaffected). A recipient contract that implements LSP1 receives a `typeId` describing what just happened along with the transfer data, and can run accept, reject, or routing logic inside one standard hook — no polling, no second transaction. The structural win is that LSP1 is one interface across LSP7, LSP8, and native value transfers: a Universal Profile, or any LSP1-aware contract, handles every asset type through the same entry point, and the four-receiver-interfaces problem simply doesn't exist.
 
 :::tip One hook, every asset
 If a contract needs to react when it receives value, LSP1 is the only interface to implement — it covers fungible tokens, identifiable tokens, and native transfers alike.

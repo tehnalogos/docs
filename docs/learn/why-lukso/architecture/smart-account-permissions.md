@@ -20,7 +20,7 @@ Every chain answers "what is this key allowed to do" differently. ERC-4337 sessi
 
 ## Four questions every permission system has to answer
 
-Granularity (per-app or per-function?), revocability (immediate or delayed?), recoverability (what happens when a key is lost?), and standardization (is this a contract pattern, or a protocol-level guarantee?). ERC-4337 sets the account-abstraction stage but leaves the actual permission scope to whichever account implementation a given SDK ships — Biconomy's session keys and ZeroDev's don't mean the same thing. Safe modules are powerful but ad hoc, each one its own audited contract. EIP-7702 makes an EOA temporarily smart, but the root key that started as "all-or-nothing" never really goes away.
+Granularity (per-app or per-function?), revocability (immediate or delayed?), recoverability (what happens when a key is lost?), and standardization (is this a contract pattern, or a protocol-level guarantee?). ERC-4337 sets the account-abstraction stage but leaves the actual permission scope to whichever account implementation a given SDK ships — Biconomy's session keys and ZeroDev's don't mean the same thing. Safe modules are powerful but ad hoc, each one its own audited contract. EIP-7702 makes an EOA smart by delegating to contract code — a delegation that persists until replaced or cleared, not a one-transaction effect — but the root key that started as "all-or-nothing" never really goes away.
 
 ## LSP6: permissions as chain-level state, not a per-app convention
 

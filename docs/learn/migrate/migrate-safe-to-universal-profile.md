@@ -14,7 +14,7 @@ Roughly a day for a small Safe. Longer if the Safe custodies many distinct asset
 
 ## When to migrate
 
-Migrate when per-controller permission scoping in a standard vocabulary — the LSP6 bitfield plus `AllowedCalls` and `AllowedERC725YDataKeys` — profile-native metadata storage, or [LSP25](../../standards/accounts/lsp25-execute-relay-call.md) relay execution on the account itself is what you need. Stay on Safe when an m-of-n multisig threshold is the exact primitive your product encodes — that pattern doesn't map one-to-one onto LSP6 and needs an explicit recovery-contract layer to express instead.
+Migrate when per-controller permission scoping in a standard vocabulary — the LSP6 bitfield plus `AllowedCalls` and `AllowedERC725YDataKeys` — profile-native metadata storage, or [LSP25](../../standards/accounts/lsp25-execute-relay-call.md) relay execution through the Key Manager (no bundler or paymaster contract needed) is what you need. Stay on Safe when an m-of-n multisig threshold is the exact primitive your product encodes — that pattern doesn't map one-to-one onto LSP6 and needs an explicit recovery-contract layer to express instead.
 
 ## Step 1 — model the Safe as permissions
 
@@ -29,11 +29,11 @@ Deploy with the standard `lsp-factory.js` (or equivalent) deployment script. Set
 
 ## Step 3 — transfer assets
 
-For each asset class:
+For each asset class, the Safe is always the one initiating the transfer via `Safe.execTransaction`:
 
-- **Native LYX** — `Safe.execTransaction` → `profile.execute(0, profile, value, "")`
-- **ERC20 / LSP7 tokens** — `Safe` → `token.transfer(profile, balance)`
-- **NFTs** — `Safe` → `token.safeTransferFrom(safe, profile, id)` (or the LSP8 equivalent)
+- **Native LYX** — `Safe.execTransaction(profileAddress, value, "0x", ...)`, sending value directly to the profile's address. There's no separate call needed on the profile side to receive a plain LYX transfer.
+- **ERC20 tokens moving to LSP7** — the Safe calls `token.transfer(profile, balance)` on the old ERC20 contract (unchanged ERC20 syntax) if you're sweeping the legacy token, or the LSP7 contract's own `transfer(from, to, amount, force, data)` if you're moving an already-migrated LSP7 balance — LSP7's `transfer` is a 5-argument function, not ERC20's 2-argument one.
+- **NFTs** — `token.safeTransferFrom(safe, profile, id)` for existing ERC721 assets works as-is between EOAs and contracts implementing `onERC721Received`, but a default Universal Profile does **not** implement `onERC721Received` natively. Before sending an ERC721 NFT with `safeTransferFrom`, register LSP17's [`OnERC721ReceivedExtension`](../../contracts/contracts/LSP17Extensions/OnERC721ReceivedExtension.md) on the profile for that selector, or use `transferFrom` (the non-safe variant) instead. NFTs already migrated to LSP8 move with `transferBatch(...)` or the LSP8 `transfer(from, to, tokenId, force, data)` call, which works against a Universal Profile with no extension needed.
 
 If the Safe holds many distinct assets, write a sweep contract that batches the outbound transfers instead of sending them one by one.
 
@@ -55,7 +55,7 @@ Once nothing material remains in the Safe, sweep out any remaining gas dust and 
 ## Verify the migration
 
 - All assets transferred to the Universal Profile.
-- Old Safe paused — no longer holds material assets.
+- Old Safe emptied of material assets — Safe has no built-in pause function, so "sunset" means the Safe holds nothing worth protecting anymore, not that it's disabled on-chain.
 - Controllers and permissions configured on the new profile.
 - Recovery policy in place, with at least one cold controller holding `EDITPERMISSIONS`.
 - Off-chain integrations updated to the new address.

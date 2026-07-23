@@ -10,22 +10,22 @@ ERC20 is Ethereum's minimum fungible-token interface: six functions, two events,
 
 ## Function-by-function comparison
 
-| Feature                        | ERC20                                     | LSP7                                                                                                                                          |
-| ------------------------------ | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Balance model                  | `balanceOf(address) → uint256`            | `balanceOf(address) → uint256`                                                                                                                |
-| Transfer signature             | `transfer(to, amount)`                    | `transfer(from, to, amount, force, data)`                                                                                                     |
-| Recipient notification         | ❌ none                                   | ✅ [LSP1](../../../standards/accounts/lsp1-universal-receiver.md) `universalReceiver` on both sender and recipient                            |
-| Transfer context payload       | ❌ none — bolted on via wrapper contracts | ✅ native `bytes data` on every transfer                                                                                                      |
-| Authorization                  | `approve` / `allowance` / `transferFrom`  | `authorizeOperator` — scoped, revocable, and notifies the operator                                                                            |
-| Metadata                       | `name()` / `symbol()` / `decimals()` only | ✅ unlimited [ERC725Y](../../../standards/erc725.md) key-value storage under [LSP4](../../../standards/tokens/LSP4-Digital-Asset-Metadata.md) |
-| Accidental-transfer protection | ❌ none                                   | ✅ `force` flag rejects transfers to non-receiving contracts by default                                                                       |
-| Batch operations               | ❌ none natively                          | ✅ `transferBatch(...)`                                                                                                                       |
+| Feature                        | ERC20                                     | LSP7                                                                                                                                                       |
+| ------------------------------ | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Balance model                  | `balanceOf(address) → uint256`            | `balanceOf(address) → uint256`                                                                                                                             |
+| Transfer signature             | `transfer(to, amount)`                    | `transfer(from, to, amount, force, data)`                                                                                                                  |
+| Recipient notification         | ❌ none                                   | ✅ [LSP1](../../../standards/accounts/lsp1-universal-receiver.md) `universalReceiver` on both sender and recipient, when they're LSP1-supporting contracts |
+| Transfer context payload       | ❌ none — bolted on via wrapper contracts | ✅ native `bytes data` on every transfer                                                                                                                   |
+| Authorization                  | `approve` / `allowance` / `transferFrom`  | `authorizeOperator` — scoped, revocable, and notifies the operator                                                                                         |
+| Metadata                       | `name()` / `symbol()` / `decimals()` only | ✅ unlimited [ERC725Y](../../../standards/erc725.md) key-value storage under [LSP4](../../../standards/tokens/LSP4-Digital-Asset-Metadata.md)              |
+| Accidental-transfer protection | ❌ none                                   | ✅ `force` flag rejects transfers to non-receiving contracts by default                                                                                    |
+| Batch operations               | ❌ none natively                          | ✅ `transferBatch(...)`                                                                                                                                    |
 
 ## Why the LSP1 hook matters more than it looks
 
 ERC20's biggest structural gap isn't the missing metadata — it's that a token contract has no way to tell the recipient "you just received tokens." That silence is why the `approve` → `transferFrom` two-step exists at all: contracts can't react to incoming value, so they have to be asked for permission in advance instead.
 
-LSP7 closes that gap directly. Every transfer fires [`universalReceiver`](../../../standards/accounts/lsp1-universal-receiver.md) on both sides through LSP1. A [Universal Profile](../../universal-profile/metadata/read-profile-data.md) can register received tokens automatically, forward a share to a savings vault, or reject a transfer outright by reverting inside the hook — logic that on ERC20 requires a custom wrapper contract deployed and audited per project. On LUKSO it's the default behavior of every LSP7 asset.
+LSP7 closes that gap directly. Every transfer fires [`universalReceiver`](../../../standards/accounts/lsp1-universal-receiver.md) on both sides through LSP1, for any sender or recipient that's a contract implementing it (EOAs, having no code to call, are unaffected either way). A [Universal Profile](../../universal-profile/metadata/read-profile-data.md) can register received tokens automatically, forward a share to a savings vault, or reject a transfer outright by reverting inside the hook — logic that on ERC20 requires a custom wrapper contract deployed and audited per project. On LUKSO it's the default behavior of every LSP7 asset moving between LSP1-aware accounts.
 
 ## Authorization is scoped at the account, not the token
 
