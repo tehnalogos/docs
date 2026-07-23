@@ -40,7 +40,7 @@ AllowedCalls:
 Granting an app a session controller is one transaction. Revoking it is one transaction. The Universal Profile checks permissions on every call through [LSP20](../../../standards/accounts/lsp20-call-verification.md), so the scope is enforced on-chain, not at a wallet UI layer that a malicious or compromised frontend could bypass. Core LSP6 has no controller-expiry field — a controller's permissions stay live until someone explicitly revokes them in a transaction. An app can layer its own off-chain "session" convention on top (e.g. stop using a key after N hours), but that's an app-level policy, not something the account itself enforces; a direct call with that controller's key still works until the on-chain permission is actually revoked.
 
 :::tip Ask for less, by default
-A Universal Profile lets a dApp request exactly the permission it needs — one token, one function, one time window — instead of defaulting to full account access just because there was no standard way to ask for less.
+A Universal Profile lets a dApp request exactly the permission it needs — one token, one function, one target contract — instead of defaulting to full account access just because there was no standard way to ask for less.
 :::
 
 **Related reading:** [The ERC-20 approval problem](./erc20-approval-risks.md) · [Social recovery without a seed phrase](./social-recovery.md) · [The EOA key-risk problem](./eoa-key-risk.md) · [Grant controller permissions](../../universal-profile/key-manager/grant-permissions.md) · [Get controller permissions](../../universal-profile/key-manager/get-controller-permissions.md)

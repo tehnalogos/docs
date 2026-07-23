@@ -44,13 +44,12 @@ Minting new balances from a snapshot only works if the old contract can no longe
 
 - **Atomic pause + burn** — if your contract does have a pause/freeze modifier (common on OpenZeppelin-based deployments that added `Pausable`), pause it in the same transaction or block as the final snapshot, so nothing can transfer after the snapshot but before the new contracts go live.
 - **Escrow-and-claim** — holders deposit their ERC1155 balance into an escrow or burn contract in exchange for the new LSP7/LSP8 tokens. This works even without a pause function, since it only relies on the standard `safeTransferFrom`, not owner-level control.
-- **Replay-protected snapshot with a reconciliation window** — snapshot, then delay activating the new contracts' claim/mint path long enough to catch and reconcile any transfers that landed after the snapshot, with a documented policy for resolving disputes.
 
-Whichever method you use, the old contract should end up paused, drained into escrow, or otherwise unable to honor transfers against balances already re-minted elsewhere — don't treat it as "historical" while it's still live and spendable. Keep the contract deployed for reference; don't redeploy over it.
+A delay-and-reconcile approach without one of the above isn't a fix — catching transfers that happened _during_ a window does nothing to stop the old balances from moving again _after_ the new claims go live, so both representations stay permanently spendable, not just spendable during the window. Whichever method you use, the old contract should end up paused or drained into escrow — a persistent, on-chain cutoff — not just watched during a delay period. Keep the contract deployed for reference; don't redeploy over it.
 
 ## Gotchas
 
-- **Snapshot-then-mint without a hard cutoff is a double-spend risk** — if the old ERC1155 contract can still be transferred after the balances used for minting were read, a holder can spend both the old and new balance. Confirm your contract actually has a pause function before planning around one, and pick an escrow- or delay-based cutover if it doesn't (see Step 5).
+- **Snapshot-then-mint without a hard cutoff is a double-spend risk** — if the old ERC1155 contract can still be transferred after the balances used for minting were read, a holder can spend both the old and new balance. Confirm your contract actually has a pause function before planning around one, and use escrow-and-claim if it doesn't (see Step 5) — a delay period alone isn't replay protection.
 - Multiple contracts instead of one — one LSP7 deployment per distinct fungible asset, plus one LSP8 deployment for the identifiable inventory. Deployment cost and indexing surface scale with how many distinct fungible IDs the old contract actually held.
 - Batch transfers are now per-standard and per-contract, not cross-standard — a batch can't mix LSP7 and LSP8 items, or items from two different LSP7 contracts, in one call.
 - Holders with mixed ERC1155 IDs need a coordinated mint across every new contract that inherits part of their balance.
@@ -59,7 +58,7 @@ Whichever method you use, the old contract should end up paused, drained into es
 ## Verify the migration
 
 - Every ERC1155 token ID is mapped to either an LSP7 amount (in that asset's own contract) or an LSP8 token ID — no two distinct fungible assets share one LSP7 balance.
-- The old contract is actually unable to honor transfers against re-minted balances — paused, escrowed, or past the reconciliation window, not just "planned to be ignored."
+- The old contract is actually unable to honor transfers against re-minted balances — paused or escrowed with a persistent on-chain cutoff, not just "planned to be ignored."
 - Holder balances are reproduced identically across every new contract.
 - Batch transfer behavior is tested per standard.
 - LSP1 receivers correctly handle both LSP7 and LSP8 `typeId`s.
